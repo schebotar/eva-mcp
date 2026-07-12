@@ -289,7 +289,7 @@ function buildTaskFilter(args: Record<string, unknown> | undefined): BqlFilter[]
 const server = new Server(
   {
     name: "eva-mcp",
-    version: "0.2.0",
+    version: "0.2.1",
   },
   {
     capabilities: {
@@ -320,6 +320,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
         },
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "get_task_comments",
@@ -335,6 +336,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: ["code"],
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "get_task_full",
@@ -350,6 +352,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: ["code"],
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "search_tasks",
@@ -369,6 +372,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           offset: { type: "number", description: "Смещение для пагинации" },
         },
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "count_tasks",
@@ -385,6 +389,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           query: { type: "string", description: "Текстовый поиск по названию задачи" },
         },
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "update_task",
@@ -429,6 +434,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: ["code"],
       },
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
     },
     {
       name: "get_project",
@@ -444,6 +450,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: ["code"],
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "search_projects",
@@ -455,6 +462,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           query: { type: "string", description: "Текстовый поиск по названию проекта" },
         },
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "search_users",
@@ -466,6 +474,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           query: { type: "string", description: "Текстовый поиск по имени или логину" },
         },
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "get_linked_tasks",
@@ -479,6 +488,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         },
         required: ["code"],
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
       name: "get_statuses",
@@ -489,6 +499,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         type: "object",
         properties: {},
       },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
   ],
 }));

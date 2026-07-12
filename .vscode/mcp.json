@@ -1,0 +1,24 @@
+{
+  "servers": {
+    "eva-mcp": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "EVA_URL": "https://your-instance.evateam.ru",
+        "EVA_TOKEN": "your-api-token"
+      },
+      "autoApprove": [
+        "get_task",
+        "get_task_comments",
+        "get_task_full",
+        "search_tasks",
+        "count_tasks",
+        "get_project",
+        "search_projects",
+        "search_users",
+        "get_linked_tasks",
+        "get_statuses"
+      ]
+    }
+  }
+}
