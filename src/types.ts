@@ -3,6 +3,8 @@ export interface JsonRpcRequest {
   jsonrpc: "2.2";
   method: string;
   kwargs: Record<string, unknown>;
+  filter?: BqlFilter | BqlFilter[];
+  args?: unknown[];
   callid?: string;
 }
 
@@ -55,7 +57,7 @@ export interface EvaTaskRaw {
   code: string;
   name: string;
   text?: string;
-  status?: string;
+  status?: { id?: string; name?: string; code?: string } | string | null;
   status_name?: string;
   cmf_author?: { login?: string; name?: string } | null;
   responsible?: { login?: string; name?: string } | null;
@@ -66,6 +68,10 @@ export interface EvaTaskRaw {
   priority_name?: string;
   logic_type?: { name?: string } | null;
   comments?: EvaCommentRaw[];
+  parent_task?: EvaTaskRaw | null;
+  child_tasks?: EvaTaskRaw[];
+  depended_tasks?: EvaTaskRaw[];
+  affected_tasks?: EvaTaskRaw[];
 }
 
 /** Сырые данные комментария из API EvaProject */
@@ -73,4 +79,143 @@ export interface EvaCommentRaw {
   cmf_author?: { login?: string; name?: string } | null;
   text?: string;
   cmf_created_at?: string;
+}
+
+// ── BQL (фильтры) ──────────────────────────────────────────────
+
+/** Операторы сравнения BQL */
+export type BqlOperator = "==" | "!=" | "ILIKE" | "NOT ILIKE" | "IN" | "NOT IN" | ">" | "<" | ">=" | "<=";
+
+/** BQL-фильтр: кортеж [поле, оператор, значение] */
+export type BqlFilter = [string, BqlOperator, unknown];
+
+// ── Параметры запросов ────────────────────────────────────────
+
+/** Параметры для listTasks */
+export interface TaskListParams {
+  filter?: BqlFilter | BqlFilter[];
+  fields?: string[];
+  slice?: [number, number]; // [offset, limit]
+}
+
+// ── Обновление задачи ─────────────────────────────────────────
+
+/** Поля, доступные для редактирования через CmfTask.update */
+export interface TaskUpdateFields {
+  name?: string;
+  text?: string;
+  status?: string;
+  responsible?: string;
+  priority?: string;
+  deadline?: string;
+  result_text?: string;
+  parent?: string;        // проект
+  executors?: string[];
+  spectators?: string[];
+  tags?: string[];
+  lists?: string[];       // списки/спринты
+  is_milestone?: boolean;
+  estimate_work?: number;
+  parent_task?: string;
+  epic?: string;
+  mark?: string;
+
+  // Низкий приоритет — доступны в клиенте, но не в MCP-инструменте
+  alarm_date?: string;
+  period_interval?: string;
+  period_next_date?: string;
+  period_clear_checkbox?: boolean;
+  period_create_new?: boolean;
+  workflow?: string;
+  logic_type?: string;
+  activity?: string;
+  no_control?: boolean;
+  depended_tasks?: string[];
+  affected_tasks?: string[];
+  components?: string[];
+  subproject?: string;
+  tmplt_document?: string;
+  waiting_for?: string;
+  local_links?: string[];
+  is_favorite?: boolean;
+  cmf_owner_assistants?: string[];
+  ui_view_form?: string;
+}
+
+// ── Проекты ───────────────────────────────────────────────────
+
+/** Нормализованные данные проекта */
+export interface ProjectInfo {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  status: string | null;
+  statusName: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+/** Сырые данные проекта из API */
+export interface EvaProjectRaw {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  status?: string;
+  status_name?: string;
+  cmf_created_at?: string;
+  cmf_modified_at?: string;
+}
+
+// ── Пользователи ──────────────────────────────────────────────
+
+/** Нормализованные данные пользователя */
+export interface PersonInfo {
+  id: string;
+  login: string;
+  name: string;
+  firstName: string | null;
+  lastName: string | null;
+  secondName: string | null;
+  email: string | null;
+}
+
+/** Сырые данные пользователя из API */
+export interface EvaPersonRaw {
+  id: string;
+  login?: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  second_name?: string;
+  email?: string;
+}
+
+// ── Статусы ───────────────────────────────────────────────────
+
+/** Нормализованные данные статуса */
+export interface StatusInfo {
+  id: string;
+  name: string;
+  code: string | null;
+  type: string | null;
+}
+
+/** Сырые данные статуса из API */
+export interface EvaStatusRaw {
+  id: string;
+  name?: string;
+  code?: string;
+  status_type?: string;
+}
+
+// ── Связанные задачи ──────────────────────────────────────────
+
+/** Набор связанных задач */
+export interface LinkedTasksInfo {
+  parentTask: TaskInfo | null;
+  childTasks: TaskInfo[];
+  dependedTasks: TaskInfo[];
+  affectedTasks: TaskInfo[];
 }

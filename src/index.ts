@@ -6,7 +6,8 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { EvaClient } from "./eva-client.js";
-import type { TaskInfo, CommentInfo } from "./types.js";
+import type { TaskInfo, CommentInfo, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, BqlFilter } from "./types.js";
+import { z } from "zod";
 
 // --- Конфигурация из переменных окружения ---
 const EVA_URL = process.env.EVA_URL;
@@ -18,6 +19,66 @@ if (!EVA_URL || !EVA_TOKEN) {
 }
 
 const evaClient = new EvaClient(EVA_URL, EVA_TOKEN);
+
+// ── Zod-схемы валидации ────────────────────────────────────────
+
+const GetTaskSchema = z.object({
+  code: z.string().optional(),
+  id: z.string().optional(),
+}).refine((v) => v.code || v.id, "Укажите code или id");
+
+const GetTaskCommentsSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
+
+const SearchTasksSchema = z.object({
+  status: z.string().optional(),
+  responsible: z.string().optional(),
+  project: z.string().optional(),
+  priority: z.string().optional(),
+  type: z.string().optional(),
+  query: z.string().optional(),
+  limit: z.number().int().positive().optional(),
+  offset: z.number().int().min(0).optional(),
+});
+
+const UpdateTaskSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+  status: z.string().optional(),
+  responsible: z.string().optional(),
+  priority: z.string().optional(),
+  deadline: z.string().optional(),
+  name: z.string().optional(),
+  text: z.string().optional(),
+  result_text: z.string().optional(),
+  project: z.string().optional(),
+  waiting_for: z.string().optional(),
+  executors: z.array(z.string()).optional(),
+  spectators: z.array(z.string()).optional(),
+  tags: z.array(z.string()).optional(),
+  lists: z.array(z.string()).optional(),
+  is_milestone: z.boolean().optional(),
+  estimate_work: z.number().optional(),
+  parent_task: z.string().optional(),
+  epic: z.string().optional(),
+  mark: z.string().optional(),
+});
+
+const GetProjectSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
+
+const SearchProjectsSchema = z.object({
+  query: z.string().optional(),
+});
+
+const SearchUsersSchema = z.object({
+  query: z.string().min(1, "Укажите имя или логин для поиска"),
+});
+
+const GetLinkedTasksSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
 
 // --- Форматирование ---
 
@@ -64,12 +125,171 @@ function formatComments(comments: CommentInfo[]): string {
   return lines.join("\n");
 }
 
+function formatTaskList(tasks: TaskInfo[], total?: number): string {
+  if (tasks.length === 0) {
+    return "Задачи не найдены.";
+  }
+
+  const header =
+    total !== undefined
+      ? `# Задачи (найдено: ${total}, показано: ${tasks.length})`
+      : `# Задачи (${tasks.length})`;
+
+  const lines: string[] = [
+    header,
+    "",
+    "| Код | Название | Статус | Приоритет | Исполнитель |",
+    "|-----|----------|--------|-----------|-------------|",
+  ];
+
+  for (const t of tasks) {
+    const name = t.name.length > 60 ? t.name.slice(0, 57) + "..." : t.name;
+    const prio = t.priorityName ?? "—";
+    const resp = t.responsibleName ?? t.responsible ?? "—";
+    lines.push(
+      `| \`${t.code}\` | ${name} | ${t.statusName ?? "—"} | ${prio} | ${resp} |`
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function formatProject(project: ProjectInfo): string {
+  const lines: string[] = [
+    `# ${project.code}: ${project.name}`,
+    "",
+    `| Поле | Значение |`,
+    `|------|----------|`,
+    `| **Код** | ${project.code} |`,
+    `| **Название** | ${project.name} |`,
+    `| **Статус** | ${project.statusName ?? "—"} |`,
+    `| **Создан** | ${project.createdAt ?? "—"} |`,
+    `| **Обновлён** | ${project.updatedAt ?? "—"} |`,
+    "",
+  ];
+
+  if (project.description) {
+    lines.push("## Описание", "", project.description, "");
+  }
+
+  return lines.join("\n");
+}
+
+function formatUsers(users: PersonInfo[]): string {
+  if (users.length === 0) {
+    return "Пользователи не найдены.";
+  }
+
+  const lines: string[] = [
+    `# Пользователи (${users.length})`,
+    "",
+    "| Логин | Имя | Фамилия | Email |",
+    "|-------|-----|---------|-------|",
+  ];
+
+  for (const u of users) {
+    const login = u.login || "—";
+    const firstName = u.firstName ?? "—";
+    const lastName = u.lastName ?? "—";
+    const email = u.email ?? "—";
+    lines.push(`| \`${login}\` | ${firstName} | ${lastName} | ${email} |`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatStatuses(statuses: StatusInfo[]): string {
+  if (statuses.length === 0) {
+    return "Статусы не найдены.";
+  }
+
+  const lines: string[] = [
+    `# Статусы (${statuses.length})`,
+    "",
+    "| ID | Название | Код | Тип |",
+    "|----|----------|-----|-----|",
+  ];
+
+  for (const s of statuses) {
+    lines.push(
+      `| \`${s.id}\` | ${s.name} | \`${s.code ?? "—"}\` | ${s.type ?? "—"} |`
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function formatLinkedTasks(linked: LinkedTasksInfo): string {
+  const parts: string[] = [];
+
+  if (linked.parentTask) {
+    parts.push(
+      "## Родительская задача",
+      "",
+      `- \`${linked.parentTask.code}\` — ${linked.parentTask.name} (${linked.parentTask.statusName ?? "—"})`,
+      ""
+    );
+  }
+
+  if (linked.childTasks.length > 0) {
+    parts.push("## Дочерние задачи", "");
+    for (const t of linked.childTasks) {
+      parts.push(
+        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+      );
+    }
+    parts.push("");
+  }
+
+  if (linked.dependedTasks.length > 0) {
+    parts.push("## Зависимые задачи (depended)", "");
+    for (const t of linked.dependedTasks) {
+      parts.push(
+        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+      );
+    }
+    parts.push("");
+  }
+
+  if (linked.affectedTasks.length > 0) {
+    parts.push("## Связанные задачи (affected)", "");
+    for (const t of linked.affectedTasks) {
+      parts.push(
+        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+      );
+    }
+    parts.push("");
+  }
+
+  if (parts.length === 0) {
+    return "Связанных задач нет.";
+  }
+
+  return parts.join("\n");
+}
+
+// ── Хелперы для построения BQL-фильтров ─────────────────────────
+
+function buildTaskFilter(args: Record<string, unknown> | undefined): BqlFilter[] {
+  const filters: BqlFilter[] = [];
+  if (!args) return filters;
+
+  if (args.status) filters.push(["status", "==", args.status]);
+  if (args.responsible) filters.push(["responsible", "==", args.responsible]);
+  if (args.project) filters.push(["parent", "==", args.project]);
+  if (args.priority) filters.push(["priority", "==", args.priority]);
+  if (args.type) filters.push(["logic_type", "==", args.type]);
+  if (args.query) filters.push(["name", "ILIKE", `%${args.query}%`]);
+
+  return filters;
+}
+
 // --- MCP Server ---
 
 const server = new Server(
   {
     name: "eva-mcp",
-    version: "0.1.0",
+    version: "0.2.0",
   },
   {
     capabilities: {
@@ -78,13 +298,14 @@ const server = new Server(
   }
 );
 
-// Регистрируем список инструментов
+// ── Регистрируем список инструментов ────────────────────────────
+
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "get_task",
       description:
-        "Получить описание задачи из EvaProject по её коду (например, DEV-000003). " +
+        "Получить описание задачи из EvaProject по её коду (например, DEV-000003) или ID. " +
         "Возвращает название, описание, статус, автора, исполнителя, проект и другие поля.",
       inputSchema: {
         type: "object",
@@ -93,8 +314,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             type: "string",
             description: "Код задачи в EvaProject, например DEV-000003",
           },
+          id: {
+            type: "string",
+            description: "ID задачи (UUID). Используется если code не указан",
+          },
         },
-        required: ["code"],
       },
     },
     {
@@ -127,6 +351,145 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["code"],
       },
     },
+    {
+      name: "search_tasks",
+      description:
+        "Поиск задач по фильтрам. Можно фильтровать по статусу, исполнителю, проекту, " +
+        "приоритету, типу и текстовому запросу. Возвращает список задач в виде таблицы.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          status: { type: "string", description: "Фильтр по статусу (ID статуса)" },
+          responsible: { type: "string", description: "Фильтр по исполнителю (логин)" },
+          project: { type: "string", description: "Фильтр по проекту (код проекта)" },
+          priority: { type: "string", description: "Фильтр по приоритету (ID приоритета)" },
+          type: { type: "string", description: "Фильтр по типу задачи (ID типа)" },
+          query: { type: "string", description: "Текстовый поиск по названию задачи" },
+          limit: { type: "number", description: "Максимальное количество результатов" },
+          offset: { type: "number", description: "Смещение для пагинации" },
+        },
+      },
+    },
+    {
+      name: "count_tasks",
+      description:
+        "Подсчитать количество задач по фильтрам (те же фильтры, что у search_tasks).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          status: { type: "string", description: "Фильтр по статусу (ID статуса)" },
+          responsible: { type: "string", description: "Фильтр по исполнителю (логин)" },
+          project: { type: "string", description: "Фильтр по проекту (код проекта)" },
+          priority: { type: "string", description: "Фильтр по приоритету (ID приоритета)" },
+          type: { type: "string", description: "Фильтр по типу задачи (ID типа)" },
+          query: { type: "string", description: "Текстовый поиск по названию задачи" },
+        },
+      },
+    },
+    {
+      name: "update_task",
+      description:
+        "Обновить поля задачи по её коду. Можно менять статус, исполнителя, приоритет, " +
+        "дедлайн, название, описание, проект, результат, ожидание ответа (waiting_for), " +
+        "соисполнителей, наблюдателей, теги, списки (спринты), веху, родительскую задачу, эпик и оценку.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "Код задачи (обязательный)" },
+          status: { type: "string", description: "Новый статус (ID статуса)" },
+          responsible: { type: "string", description: "Новый исполнитель (логин)" },
+          priority: { type: "string", description: "Новый приоритет (ID приоритета)" },
+          deadline: { type: "string", description: "Крайний срок (ISO-дата, например 2026-07-15)" },
+          name: { type: "string", description: "Новое название задачи" },
+          text: { type: "string", description: "Новое описание (Markdown)" },
+          result_text: { type: "string", description: "Текст результата" },
+          project: { type: "string", description: "Перенести в проект (код проекта)" },
+          waiting_for: { type: "string", description: "Ожидает ответа от (логин пользователя)" },
+          executors: {
+            type: "array", items: { type: "string" },
+            description: "Соисполнители (логины пользователей)",
+          },
+          spectators: {
+            type: "array", items: { type: "string" },
+            description: "Наблюдатели (логины пользователей)",
+          },
+          tags: {
+            type: "array", items: { type: "string" },
+            description: "Теги (названия или ID тегов)",
+          },
+          lists: {
+            type: "array", items: { type: "string" },
+            description: "Списки/спринты (ID списков)",
+          },
+          is_milestone: { type: "boolean", description: "Отметить как веху (Milestone)" },
+          estimate_work: { type: "number", description: "Исходная оценка в часах" },
+          parent_task: { type: "string", description: "Родительская задача (код)" },
+          epic: { type: "string", description: "Epic (код задачи-эпика)" },
+          mark: { type: "string", description: "Оценка" },
+        },
+        required: ["code"],
+      },
+    },
+    {
+      name: "get_project",
+      description:
+        "Получить информацию о проекте по его коду.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: {
+            type: "string",
+            description: "Код проекта в EvaProject",
+          },
+        },
+        required: ["code"],
+      },
+    },
+    {
+      name: "search_projects",
+      description:
+        "Поиск проектов по названию.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Текстовый поиск по названию проекта" },
+        },
+      },
+    },
+    {
+      name: "search_users",
+      description:
+        "Поиск пользователей по имени или логину.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          query: { type: "string", description: "Текстовый поиск по имени или логину" },
+        },
+      },
+    },
+    {
+      name: "get_linked_tasks",
+      description:
+        "Получить все задачи, связанные с указанной задачей: родительскую, дочерние, " +
+        "зависимые (depended) и связанные (affected).",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "Код задачи, например DEV-000003" },
+        },
+        required: ["code"],
+      },
+    },
+    {
+      name: "get_statuses",
+      description:
+        "Получить справочник всех статусов задач с их ID и названиями. " +
+        "Полезно перед вызовом update_task, чтобы узнать ID нужного статуса.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+    },
   ],
 }));
 
@@ -137,43 +500,127 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     switch (name) {
       case "get_task": {
-        const code = String(args?.code ?? "");
-        if (!code) {
-          throw new Error("Не указан код задачи (параметр 'code')");
-        }
-        const task = await evaClient.getTask(code);
-        return {
-          content: [{ type: "text", text: formatTask(task) }],
-        };
+        const { code, id } = GetTaskSchema.parse(args);
+        const task = code
+          ? await evaClient.getTask(code)
+          : await evaClient.getTaskById(id!);
+        return { content: [{ type: "text", text: formatTask(task) }] };
       }
 
       case "get_task_comments": {
-        const code = String(args?.code ?? "");
-        if (!code) {
-          throw new Error("Не указан код задачи (параметр 'code')");
-        }
+        const { code } = GetTaskCommentsSchema.parse(args);
         const comments = await evaClient.getTaskComments(code);
-        return {
-          content: [{ type: "text", text: formatComments(comments) }],
-        };
+        return { content: [{ type: "text", text: formatComments(comments) }] };
       }
 
       case "get_task_full": {
-        const code = String(args?.code ?? "");
-        if (!code) {
-          throw new Error("Не указан код задачи (параметр 'code')");
-        }
+        const { code } = GetTaskCommentsSchema.parse(args);
         const { task, comments } = await evaClient.getTaskWithComments(code);
         const text = formatTask(task) + "\n---\n\n" + formatComments(comments);
-        return {
-          content: [{ type: "text", text }],
-        };
+        return { content: [{ type: "text", text }] };
+      }
+
+      case "search_tasks": {
+        const params = SearchTasksSchema.parse(args);
+        const filters = buildTaskFilter(params as Record<string, unknown>);
+        const slice: [number, number] | undefined =
+          params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
+
+        const tasks = await evaClient.listTasks({
+          filter: filters.length > 0 ? filters : undefined,
+          slice,
+        });
+
+        const total = filters.length > 0
+          ? await evaClient.countTasks(filters)
+          : undefined;
+
+        return { content: [{ type: "text", text: formatTaskList(tasks, total) }] };
+      }
+
+      case "count_tasks": {
+        const params = SearchTasksSchema.parse(args);
+        const filters = buildTaskFilter(params as Record<string, unknown>);
+        const count = await evaClient.countTasks(
+          filters.length > 0 ? filters : undefined
+        );
+        return { content: [{ type: "text", text: `Найдено задач: **${count}**` }] };
+      }
+
+      case "update_task": {
+        const { code, ...rest } = UpdateTaskSchema.parse(args);
+
+        const fields: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(rest)) {
+          if (value !== undefined && value !== null) {
+            fields[key] = value;
+          }
+        }
+
+        if (Object.keys(fields).length === 0) {
+          throw new Error("Не указаны поля для обновления");
+        }
+
+        const task = await evaClient.updateTask(code, fields);
+        return { content: [{ type: "text", text: "✅ Задача обновлена.\n\n" + formatTask(task) }] };
+      }
+
+      case "get_project": {
+        const { code } = GetProjectSchema.parse(args);
+        const project = await evaClient.getProject(code);
+        return { content: [{ type: "text", text: formatProject(project) }] };
+      }
+
+      case "search_projects": {
+        const { query } = SearchProjectsSchema.parse(args);
+        const filters: BqlFilter[] = query ? [["name", "ILIKE", `%${query}%`]] : [];
+        const projects = await evaClient.listProjects(
+          filters.length > 0 ? filters : undefined
+        );
+        if (projects.length === 0) {
+          return { content: [{ type: "text", text: "Проекты не найдены." }] };
+        }
+        const lines: string[] = [
+          `# Проекты (${projects.length})`,
+          "",
+          "| Код | Название | Статус |",
+          "|-----|----------|--------|",
+        ];
+        for (const p of projects) {
+          lines.push(`| \`${p.code}\` | ${p.name} | ${p.statusName ?? "—"} |`);
+        }
+        return { content: [{ type: "text", text: lines.join("\n") }] };
+      }
+
+      case "search_users": {
+        const { query } = SearchUsersSchema.parse(args);
+        const users = await evaClient.searchUsers(query);
+        return { content: [{ type: "text", text: formatUsers(users) }] };
+      }
+
+      case "get_linked_tasks": {
+        const { code } = GetLinkedTasksSchema.parse(args);
+        const linked = await evaClient.getLinkedTasks(code);
+        return { content: [{ type: "text", text: formatLinkedTasks(linked) }] };
+      }
+
+      case "get_statuses": {
+        const statuses = await evaClient.getStatuses();
+        return { content: [{ type: "text", text: formatStatuses(statuses) }] };
       }
 
       default:
         throw new Error(`Неизвестный инструмент: ${name}`);
     }
   } catch (error) {
+    // Zod-ошибки валидации
+    if (error instanceof z.ZodError) {
+      const issues = error.issues.map((i) => `• ${i.path.join(".")}: ${i.message}`);
+      return {
+        content: [{ type: "text", text: `❌ Ошибка валидации:\n${issues.join("\n")}` }],
+        isError: true,
+      };
+    }
     const message = error instanceof Error ? error.message : String(error);
     return {
       content: [{ type: "text", text: `❌ Ошибка: ${message}` }],
