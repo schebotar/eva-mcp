@@ -7,7 +7,6 @@ import type {
   LinkedTasksInfo, ReferencingTasksInfo,
   EvaRelationOptionRaw, RelationInfo,
 } from "./types.js";
-
 /** HTTP-клиент для EvaProject JSON-RPC API */
 export class EvaClient {
   private baseUrl: string;
@@ -101,21 +100,21 @@ export class EvaClient {
   async getTaskWithComments(code: string): Promise<{ task: TaskInfo; comments: CommentInfo[]; mentionedTasks: string[] }> {
     const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
       filter: ["code", "==", code],
-      fields: ["**", "comments.*"],
+      fields: ["**", "comments.**"],
     });
 
     const task = this.mapTask(raw);
-    const comments = (raw.comments ?? []).map((c) => this.mapComment(c));
+    const allComments = (raw.comments ?? []).map((c) => this.mapComment(c));
 
     // Собираем упоминания из описания задачи и всех комментариев
     const allText = [
       task.text,
-      ...comments.map((c) => c.text),
+      ...allComments.map((c) => c.text),
     ].join(" ");
     const mentionedTasks = this.extractTaskCodes(allText)
       .filter((c) => c.toUpperCase() !== code.toUpperCase());
 
-    return { task, comments, mentionedTasks };
+    return { task, comments: allComments, mentionedTasks };
   }
 
   /** Получить задачу по ID */
@@ -405,10 +404,12 @@ export class EvaClient {
 
   private mapComment(raw: EvaCommentRaw): CommentInfo {
     return {
+      id: raw.id ?? null,
       author: raw.cmf_author?.login ?? null,
       authorName: raw.cmf_author?.name ?? null,
       text: raw.text ?? "",
       createdAt: raw.cmf_created_at ?? null,
+      parentCode: raw.tree_parent?.id ?? null,
     };
   }
 

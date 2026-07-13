@@ -1,6 +1,6 @@
 {
   "name": "eva-mcp",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "MCP server for EvaProject — get task info and comments by ticket number",
   "type": "module",
   "main": "dist/index.js",

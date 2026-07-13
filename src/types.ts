@@ -45,10 +45,18 @@ export interface TaskInfo {
 
 /** Данные комментария */
 export interface CommentInfo {
+  id: string | null;
   author: string | null;
   authorName: string | null;
   text: string;
   createdAt: string | null;
+  parentCode: string | null;
+}
+
+/** Узел дерева комментариев */
+export interface CommentNode {
+  comment: CommentInfo;
+  replies: CommentNode[];
 }
 
 /** Сырые данные задачи из API EvaProject */
@@ -78,9 +86,11 @@ export interface EvaTaskRaw {
 
 /** Сырые данные комментария из API EvaProject */
 export interface EvaCommentRaw {
+  id?: string;
   cmf_author?: { login?: string; name?: string } | null;
   text?: string;
   cmf_created_at?: string;
+  tree_parent?: { id?: string } | null;
 }
 
 // ── BQL (фильтры) ──────────────────────────────────────────────
