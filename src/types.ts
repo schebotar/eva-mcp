@@ -72,6 +72,8 @@ export interface EvaTaskRaw {
   child_tasks?: EvaTaskRaw[];
   depended_tasks?: EvaTaskRaw[];
   affected_tasks?: EvaTaskRaw[];
+  in_tasks?: EvaRelationOptionRaw[];
+  out_tasks?: EvaRelationOptionRaw[];
 }
 
 /** Сырые данные комментария из API EvaProject */
@@ -86,8 +88,8 @@ export interface EvaCommentRaw {
 /** Операторы сравнения BQL */
 export type BqlOperator = "==" | "!=" | "ILIKE" | "NOT ILIKE" | "IN" | "NOT IN" | ">" | "<" | ">=" | "<=";
 
-/** BQL-фильтр: кортеж [поле, оператор, значение] */
-export type BqlFilter = [string, BqlOperator, unknown];
+/** BQL-фильтр: кортеж [поле, оператор, значение] или OR-группа */
+export type BqlFilter = [string, BqlOperator, unknown] | ["OR", ...BqlFilter[]];
 
 // ── Параметры запросов ────────────────────────────────────────
 
@@ -212,10 +214,43 @@ export interface EvaStatusRaw {
 
 // ── Связанные задачи ──────────────────────────────────────────
 
+/** Информация о связи через CmfRelationOption */
+export interface RelationInfo {
+  relationId: string;
+  outTask: TaskInfo;
+  inTask: TaskInfo;
+  outTypeName: string | null;
+  inTypeName: string | null;
+  choiceType: string | null;
+}
+
 /** Набор связанных задач */
 export interface LinkedTasksInfo {
   parentTask: TaskInfo | null;
   childTasks: TaskInfo[];
   dependedTasks: TaskInfo[];
   affectedTasks: TaskInfo[];
+  /** Задачи, следующие за этой (эта задача предшествует им) — in_tasks */
+  precedesTasks: RelationInfo[];
+  /** Задачи, предшествующие этой (эта задача следует за ними) — out_tasks */
+  followsTasks: RelationInfo[];
+}
+
+/** Обратные связи: кто ссылается на эту задачу */
+export interface ReferencingTasksInfo {
+  tasksWithThisAsParent: TaskInfo[];
+  tasksWithThisAsDepended: TaskInfo[];
+  tasksWithThisAsAffected: TaskInfo[];
+}
+
+/** Сырые данные CmfRelationOption */
+export interface EvaRelationOptionRaw {
+  id: string;
+  out_link?: { code?: string; name?: string; id?: string } | null;
+  in_link?: { code?: string; name?: string; id?: string } | null;
+  relation_type?: {
+    out_type_name?: string;
+    in_type_name?: string;
+    choice_type?: string;
+  } | null;
 }

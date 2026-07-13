@@ -4,7 +4,8 @@ import type {
   ProjectInfo, EvaProjectRaw,
   PersonInfo, EvaPersonRaw,
   StatusInfo, EvaStatusRaw,
-  LinkedTasksInfo,
+  LinkedTasksInfo, ReferencingTasksInfo,
+  EvaRelationOptionRaw, RelationInfo,
 } from "./types.js";
 
 /** HTTP-клиент для EvaProject JSON-RPC API */
@@ -16,6 +17,21 @@ export class EvaClient {
     // Убираем trailing slash
     this.baseUrl = baseUrl.replace(/\/+$/, "");
     this.token = token;
+  }
+
+  /** Извлечь коды задач из произвольного текста (например, из комментариев) */
+  extractTaskCodes(text: string): string[] {
+    if (!text) return [];
+    const matches = text.match(/\b[A-Z]+-\d+\b/g);
+    if (!matches) return [];
+    // Уникальные значения без учёта регистра кода
+    const seen = new Set<string>();
+    return matches.filter((m) => {
+      const upper = m.toUpperCase();
+      if (seen.has(upper)) return false;
+      seen.add(upper);
+      return true;
+    });
   }
 
   /** Универсальный вызов JSON-RPC метода */
@@ -82,7 +98,7 @@ export class EvaClient {
   }
 
   /** Получить задачу вместе с комментариями */
-  async getTaskWithComments(code: string): Promise<{ task: TaskInfo; comments: CommentInfo[] }> {
+  async getTaskWithComments(code: string): Promise<{ task: TaskInfo; comments: CommentInfo[]; mentionedTasks: string[] }> {
     const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
       filter: ["code", "==", code],
       fields: ["**", "comments.*"],
@@ -90,7 +106,16 @@ export class EvaClient {
 
     const task = this.mapTask(raw);
     const comments = (raw.comments ?? []).map((c) => this.mapComment(c));
-    return { task, comments };
+
+    // Собираем упоминания из описания задачи и всех комментариев
+    const allText = [
+      task.text,
+      ...comments.map((c) => c.text),
+    ].join(" ");
+    const mentionedTasks = this.extractTaskCodes(allText)
+      .filter((c) => c.toUpperCase() !== code.toUpperCase());
+
+    return { task, comments, mentionedTasks };
   }
 
   /** Получить задачу по ID */
@@ -200,7 +225,7 @@ export class EvaClient {
     return result.map((raw) => this.mapStatus(raw));
   }
 
-  /** Получить связанные задачи (родительскую, дочерние, зависимые, affected) */
+  /** Получить связанные задачи (родительскую, дочерние, зависимые, affected, а также связи через CmfRelationOption) */
   async getLinkedTasks(code: string): Promise<LinkedTasksInfo> {
     const raw = await this.call<Record<string, unknown>>("CmfTask.get", {
       filter: ["code", "==", code],
@@ -210,6 +235,22 @@ export class EvaClient {
         "child_tasks.**",
         "depended_tasks.**",
         "affected_tasks.**",
+        "in_tasks.**",
+        "in_tasks.out_link.code",
+        "in_tasks.out_link.name",
+        "in_tasks.in_link.code",
+        "in_tasks.in_link.name",
+        "in_tasks.relation_type.out_type_name",
+        "in_tasks.relation_type.in_type_name",
+        "in_tasks.relation_type.choice_type",
+        "out_tasks.**",
+        "out_tasks.out_link.code",
+        "out_tasks.out_link.name",
+        "out_tasks.in_link.code",
+        "out_tasks.in_link.name",
+        "out_tasks.relation_type.out_type_name",
+        "out_tasks.relation_type.in_type_name",
+        "out_tasks.relation_type.choice_type",
       ],
     });
 
@@ -219,12 +260,122 @@ export class EvaClient {
     const mapArr = (arr: unknown): TaskInfo[] =>
       Array.isArray(arr) ? arr.map((r) => this.mapTask(r as EvaTaskRaw)) : [];
 
+    const mapRelations = (arr: unknown): RelationInfo[] => {
+      if (!Array.isArray(arr)) return [];
+      return arr.map((rel: EvaRelationOptionRaw) => ({
+        relationId: rel.id,
+        outTask: this.mapTask({ id: rel.out_link?.id ?? "", code: rel.out_link?.code ?? "", name: rel.out_link?.name ?? "" } as EvaTaskRaw),
+        inTask: this.mapTask({ id: rel.in_link?.id ?? "", code: rel.in_link?.code ?? "", name: rel.in_link?.name ?? "" } as EvaTaskRaw),
+        outTypeName: rel.relation_type?.out_type_name ?? null,
+        inTypeName: rel.relation_type?.in_type_name ?? null,
+        choiceType: rel.relation_type?.choice_type ?? null,
+      }));
+    };
+
     return {
       parentTask: mapOrNull((raw as Record<string, unknown>).parent_task),
       childTasks: mapArr((raw as Record<string, unknown>).child_tasks),
       dependedTasks: mapArr((raw as Record<string, unknown>).depended_tasks),
       affectedTasks: mapArr((raw as Record<string, unknown>).affected_tasks),
+      precedesTasks: mapRelations((raw as Record<string, unknown>).in_tasks),
+      followsTasks: mapRelations((raw as Record<string, unknown>).out_tasks),
     };
+  }
+
+  /** Обратный поиск: найти задачи, которые ссылаются на указанную */
+  async getReferencingTasks(code: string): Promise<ReferencingTasksInfo> {
+    const fields = ["**"];
+
+    // Параллельно ищем задачи по трём типам обратных связей
+    const [asParent, asDepended, asAffected] = await Promise.all([
+      this.call<EvaTaskRaw[]>("CmfTask.list", {
+        fields,
+        filter: ["parent_task", "==", code],
+      }).catch(() => [] as EvaTaskRaw[]),
+      this.call<EvaTaskRaw[]>("CmfTask.list", {
+        fields,
+        filter: ["depended_tasks", "IN", [code]],
+      }).catch(() => [] as EvaTaskRaw[]),
+      this.call<EvaTaskRaw[]>("CmfTask.list", {
+        fields,
+        filter: ["affected_tasks", "IN", [code]],
+      }).catch(() => [] as EvaTaskRaw[]),
+    ]);
+
+    const mapArr = (arr: EvaTaskRaw[]): TaskInfo[] =>
+      arr.map((r) => this.mapTask(r));
+
+    return {
+      tasksWithThisAsParent: mapArr(asParent),
+      tasksWithThisAsDepended: mapArr(asDepended),
+      tasksWithThisAsAffected: mapArr(asAffected),
+    };
+  }
+
+  /** Батчевый вариант getLinkedTasks — сразу для нескольких кодов */
+  async getLinkedTasksBatch(codes: string[]): Promise<Record<string, LinkedTasksInfo>> {
+    if (codes.length === 0) return {};
+
+    const rawList = await this.call<Record<string, unknown>[]>("CmfTask.list", {
+      fields: [
+        "**",
+        "parent_task.**",
+        "child_tasks.**",
+        "depended_tasks.**",
+        "affected_tasks.**",
+        "in_tasks.**",
+        "in_tasks.out_link.code",
+        "in_tasks.out_link.name",
+        "in_tasks.in_link.code",
+        "in_tasks.in_link.name",
+        "in_tasks.relation_type.out_type_name",
+        "in_tasks.relation_type.in_type_name",
+        "in_tasks.relation_type.choice_type",
+        "out_tasks.**",
+        "out_tasks.out_link.code",
+        "out_tasks.out_link.name",
+        "out_tasks.in_link.code",
+        "out_tasks.in_link.name",
+        "out_tasks.relation_type.out_type_name",
+        "out_tasks.relation_type.in_type_name",
+        "out_tasks.relation_type.choice_type",
+      ],
+      filter: ["code", "IN", codes],
+    });
+
+    const mapOrNull = (r: unknown): TaskInfo | null =>
+      r ? this.mapTask(r as EvaTaskRaw) : null;
+
+    const mapArr = (arr: unknown): TaskInfo[] =>
+      Array.isArray(arr) ? arr.map((r) => this.mapTask(r as EvaTaskRaw)) : [];
+
+    const mapRelations = (arr: unknown): RelationInfo[] => {
+      if (!Array.isArray(arr)) return [];
+      return arr.map((rel: EvaRelationOptionRaw) => ({
+        relationId: rel.id,
+        outTask: this.mapTask({ id: rel.out_link?.id ?? "", code: rel.out_link?.code ?? "", name: rel.out_link?.name ?? "" } as EvaTaskRaw),
+        inTask: this.mapTask({ id: rel.in_link?.id ?? "", code: rel.in_link?.code ?? "", name: rel.in_link?.name ?? "" } as EvaTaskRaw),
+        outTypeName: rel.relation_type?.out_type_name ?? null,
+        inTypeName: rel.relation_type?.in_type_name ?? null,
+        choiceType: rel.relation_type?.choice_type ?? null,
+      }));
+    };
+
+    const result: Record<string, LinkedTasksInfo> = {};
+    for (const raw of rawList) {
+      const code = (raw as Record<string, unknown>).code as string;
+      if (code) {
+        result[code] = {
+          parentTask: mapOrNull((raw as Record<string, unknown>).parent_task),
+          childTasks: mapArr((raw as Record<string, unknown>).child_tasks),
+          dependedTasks: mapArr((raw as Record<string, unknown>).depended_tasks),
+          affectedTasks: mapArr((raw as Record<string, unknown>).affected_tasks),
+          precedesTasks: mapRelations((raw as Record<string, unknown>).in_tasks),
+          followsTasks: mapRelations((raw as Record<string, unknown>).out_tasks),
+        };
+      }
+    }
+    return result;
   }
 
   private mapTask(raw: EvaTaskRaw): TaskInfo {

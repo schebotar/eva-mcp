@@ -6,7 +6,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { EvaClient } from "./eva-client.js";
-import type { TaskInfo, CommentInfo, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, BqlFilter } from "./types.js";
+import type { TaskInfo, CommentInfo, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, ReferencingTasksInfo, RelationInfo, BqlFilter } from "./types.js";
 import { z } from "zod";
 
 // --- Конфигурация из переменных окружения ---
@@ -27,10 +27,6 @@ const GetTaskSchema = z.object({
   id: z.string().optional(),
 }).refine((v) => v.code || v.id, "Укажите code или id");
 
-const GetTaskCommentsSchema = z.object({
-  code: z.string().min(1, "code обязателен"),
-});
-
 const SearchTasksSchema = z.object({
   status: z.string().optional(),
   responsible: z.string().optional(),
@@ -38,8 +34,19 @@ const SearchTasksSchema = z.object({
   priority: z.string().optional(),
   type: z.string().optional(),
   query: z.string().optional(),
+  linked_to: z.string().optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().min(0).optional(),
+});
+
+const CountTasksSchema = z.object({
+  status: z.string().optional(),
+  responsible: z.string().optional(),
+  project: z.string().optional(),
+  priority: z.string().optional(),
+  type: z.string().optional(),
+  query: z.string().optional(),
+  linked_to: z.string().optional(),
 });
 
 const UpdateTaskSchema = z.object({
@@ -78,6 +85,14 @@ const SearchUsersSchema = z.object({
 
 const GetLinkedTasksSchema = z.object({
   code: z.string().min(1, "code обязателен"),
+});
+
+const GetReferencingTasksSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
+
+const GetLinkedTasksBatchSchema = z.object({
+  codes: z.array(z.string().min(1)).min(1, "Укажите хотя бы один код").max(50, "Не более 50 кодов за раз"),
 });
 
 // --- Форматирование ---
@@ -261,11 +276,142 @@ function formatLinkedTasks(linked: LinkedTasksInfo): string {
     parts.push("");
   }
 
+  // Группируем precedesTasks по типу связи
+  if (linked.precedesTasks.length > 0) {
+    const grouped = new Map<string, RelationInfo[]>();
+    for (const r of linked.precedesTasks) {
+      const key = r.outTypeName ?? "Связь";
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(r);
+    }
+    for (const [label, rels] of grouped) {
+      parts.push(`## ${label}`, "");
+      for (const r of rels) {
+        parts.push(
+          `- \`${r.inTask.code}\` — ${r.inTask.name}`
+        );
+      }
+      parts.push("");
+    }
+  }
+
+  if (linked.followsTasks.length > 0) {
+    const grouped = new Map<string, RelationInfo[]>();
+    for (const r of linked.followsTasks) {
+      const key = r.inTypeName ?? "Связь";
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push(r);
+    }
+    for (const [label, rels] of grouped) {
+      parts.push(`## ${label}`, "");
+      for (const r of rels) {
+        parts.push(
+          `- \`${r.outTask.code}\` — ${r.outTask.name}`
+        );
+      }
+      parts.push("");
+    }
+  }
+
   if (parts.length === 0) {
     return "Связанных задач нет.";
   }
 
   return parts.join("\n");
+}
+
+function formatReferencingTasks(refs: ReferencingTasksInfo): string {
+  const parts: string[] = [];
+
+  if (refs.tasksWithThisAsParent.length > 0) {
+    parts.push("## Задачи, в которых эта задача — родительская", "");
+    for (const t of refs.tasksWithThisAsParent) {
+      parts.push(
+        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+      );
+    }
+    parts.push("");
+  }
+
+  if (refs.tasksWithThisAsDepended.length > 0) {
+    parts.push("## Задачи, которые зависят от этой (depended)", "");
+    for (const t of refs.tasksWithThisAsDepended) {
+      parts.push(
+        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+      );
+    }
+    parts.push("");
+  }
+
+  if (refs.tasksWithThisAsAffected.length > 0) {
+    parts.push("## Задачи, связанные с этой (affected)", "");
+    for (const t of refs.tasksWithThisAsAffected) {
+      parts.push(
+        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+      );
+    }
+    parts.push("");
+  }
+
+  if (parts.length === 0) {
+    return "Ни одна задача не ссылается на эту.";
+  }
+
+  return parts.join("\n");
+}
+
+function formatLinkedTasksBatch(
+  batch: Record<string, LinkedTasksInfo>,
+  codes: string[]
+): string {
+  const lines: string[] = [`# Связанные задачи (${codes.length} шт.)`, ""];
+
+  for (const code of codes) {
+    const linked = batch[code];
+    lines.push(`## ${code}`, "");
+    if (linked) {
+      if (linked.parentTask) {
+        lines.push(`- **Родительская**: \`${linked.parentTask.code}\` — ${linked.parentTask.name} (${linked.parentTask.statusName ?? "—"})`);
+      }
+      if (linked.childTasks.length > 0) {
+        lines.push(`- **Дочерние**: ${linked.childTasks.map((t) => `\`${t.code}\``).join(", ")}`);
+      }
+      if (linked.dependedTasks.length > 0) {
+        lines.push(`- **Зависимые**: ${linked.dependedTasks.map((t) => `\`${t.code}\``).join(", ")}`);
+      }
+      if (linked.affectedTasks.length > 0) {
+        lines.push(`- **Связанные**: ${linked.affectedTasks.map((t) => `\`${t.code}\``).join(", ")}`);
+      }
+      if (linked.precedesTasks.length > 0) {
+        const label = linked.precedesTasks[0].outTypeName ?? "Предшествует";
+        lines.push(`- **${label}**: ${linked.precedesTasks.map((r) => `\`${r.inTask.code}\``).join(", ")}`);
+      }
+      if (linked.followsTasks.length > 0) {
+        const label = linked.followsTasks[0].inTypeName ?? "Следует за";
+        lines.push(`- **${label}**: ${linked.followsTasks.map((r) => `\`${r.outTask.code}\``).join(", ")}`);
+      }
+      const hasAny = linked.parentTask || linked.childTasks.length > 0 || linked.dependedTasks.length > 0 || linked.affectedTasks.length > 0 || linked.precedesTasks.length > 0 || linked.followsTasks.length > 0;
+      if (!hasAny) {
+        lines.push("- Связанных задач нет");
+      }
+    } else {
+      lines.push("- ⚠️ Задача не найдена");
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+function formatMentionedTasks(mentionedTasks: string[]): string {
+  if (mentionedTasks.length === 0) return "";
+  return [
+    "",
+    "## Упомянутые задачи",
+    "",
+    ...mentionedTasks.map((c) => `- \`${c}\``),
+    "",
+  ].join("\n");
 }
 
 // ── Хелперы для построения BQL-фильтров ─────────────────────────
@@ -280,6 +426,16 @@ function buildTaskFilter(args: Record<string, unknown> | undefined): BqlFilter[]
   if (args.priority) filters.push(["priority", "==", args.priority]);
   if (args.type) filters.push(["logic_type", "==", args.type]);
   if (args.query) filters.push(["name", "ILIKE", `%${args.query}%`]);
+  if (args.linked_to) {
+    // OR-фильтр: задача ссылается на linked_to как parent, depended или affected
+    const code = args.linked_to as string;
+    filters.push([
+      "OR",
+      ["parent_task", "==", code],
+      ["depended_tasks", "IN", [code]],
+      ["affected_tasks", "IN", [code]],
+    ]);
+  }
 
   return filters;
 }
@@ -289,7 +445,7 @@ function buildTaskFilter(args: Record<string, unknown> | undefined): BqlFilter[]
 const server = new Server(
   {
     name: "eva-mcp",
-    version: "0.2.1",
+    version: "0.4.0",
   },
   {
     capabilities: {
@@ -305,8 +461,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     {
       name: "get_task",
       description:
-        "Получить описание задачи из EvaProject по её коду (например, DEV-000003) или ID. " +
-        "Возвращает название, описание, статус, автора, исполнителя, проект и другие поля.",
+        "Получить задачу из EvaProject по коду (например, DEV-000003) или ID. " +
+        "Возвращает название, описание, статус, автора, исполнителя, проект, комментарии и коды упомянутых задач.",
       inputSchema: {
         type: "object",
         properties: {
@@ -319,38 +475,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             description: "ID задачи (UUID). Используется если code не указан",
           },
         },
-      },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
-    },
-    {
-      name: "get_task_comments",
-      description:
-        "Получить комментарии к задаче из EvaProject по её коду.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          code: {
-            type: "string",
-            description: "Код задачи в EvaProject, например DEV-000003",
-          },
-        },
-        required: ["code"],
-      },
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
-    },
-    {
-      name: "get_task_full",
-      description:
-        "Получить полную информацию о задаче: описание + комментарии одним запросом.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          code: {
-            type: "string",
-            description: "Код задачи в EvaProject, например DEV-000003",
-          },
-        },
-        required: ["code"],
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
@@ -368,6 +492,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           priority: { type: "string", description: "Фильтр по приоритету (ID приоритета)" },
           type: { type: "string", description: "Фильтр по типу задачи (ID типа)" },
           query: { type: "string", description: "Текстовый поиск по названию задачи" },
+          linked_to: { type: "string", description: "Найти задачи, которые ссылаются на указанную (код задачи)" },
           limit: { type: "number", description: "Максимальное количество результатов" },
           offset: { type: "number", description: "Смещение для пагинации" },
         },
@@ -387,6 +512,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           priority: { type: "string", description: "Фильтр по приоритету (ID приоритета)" },
           type: { type: "string", description: "Фильтр по типу задачи (ID типа)" },
           query: { type: "string", description: "Текстовый поиск по названию задачи" },
+          linked_to: { type: "string", description: "Найти задачи, которые ссылаются на указанную (код задачи)" },
         },
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -480,13 +606,46 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       name: "get_linked_tasks",
       description:
         "Получить все задачи, связанные с указанной задачей: родительскую, дочерние, " +
-        "зависимые (depended) и связанные (affected).",
+        "зависимые (depended) и связанные (affected). Для нескольких задач эффективнее использовать get_linked_tasks_batch.",
       inputSchema: {
         type: "object",
         properties: {
           code: { type: "string", description: "Код задачи, например DEV-000003" },
         },
         required: ["code"],
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    {
+      name: "get_referencing_tasks",
+      description:
+        "Обратный поиск связей: найти задачи, которые ссылаются на указанную (в полях " +
+        "родительская, depended, affected). Результат сгруппирован по типу связи. " +
+        "Для комбинирования с другими фильтрами используйте search_tasks с параметром linked_to.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "Код задачи, например MSR-903" },
+        },
+        required: ["code"],
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    {
+      name: "get_linked_tasks_batch",
+      description:
+        "Батчевый вариант get_linked_tasks: получить связи для нескольких задач за один вызов. " +
+        "Принимает до 50 кодов задач.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          codes: {
+            type: "array",
+            items: { type: "string" },
+            description: "Коды задач, например [\"DEV-001\", \"DEV-002\"]",
+          },
+        },
+        required: ["codes"],
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
@@ -512,23 +671,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case "get_task": {
         const { code, id } = GetTaskSchema.parse(args);
-        const task = code
-          ? await evaClient.getTask(code)
-          : await evaClient.getTaskById(id!);
+        if (code) {
+          const { task, comments, mentionedTasks } = await evaClient.getTaskWithComments(code);
+          const text = formatTask(task) + "\n---\n\n" + formatComments(comments) + formatMentionedTasks(mentionedTasks);
+          return { content: [{ type: "text", text }] };
+        }
+        // Поиск по ID — без комментариев
+        const task = await evaClient.getTaskById(id!);
         return { content: [{ type: "text", text: formatTask(task) }] };
-      }
-
-      case "get_task_comments": {
-        const { code } = GetTaskCommentsSchema.parse(args);
-        const comments = await evaClient.getTaskComments(code);
-        return { content: [{ type: "text", text: formatComments(comments) }] };
-      }
-
-      case "get_task_full": {
-        const { code } = GetTaskCommentsSchema.parse(args);
-        const { task, comments } = await evaClient.getTaskWithComments(code);
-        const text = formatTask(task) + "\n---\n\n" + formatComments(comments);
-        return { content: [{ type: "text", text }] };
       }
 
       case "search_tasks": {
@@ -550,7 +700,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       case "count_tasks": {
-        const params = SearchTasksSchema.parse(args);
+        const params = CountTasksSchema.parse(args);
         const filters = buildTaskFilter(params as Record<string, unknown>);
         const count = await evaClient.countTasks(
           filters.length > 0 ? filters : undefined
@@ -613,6 +763,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { code } = GetLinkedTasksSchema.parse(args);
         const linked = await evaClient.getLinkedTasks(code);
         return { content: [{ type: "text", text: formatLinkedTasks(linked) }] };
+      }
+
+      case "get_referencing_tasks": {
+        const { code } = GetReferencingTasksSchema.parse(args);
+        const refs = await evaClient.getReferencingTasks(code);
+        return { content: [{ type: "text", text: formatReferencingTasks(refs) }] };
+      }
+
+      case "get_linked_tasks_batch": {
+        const { codes } = GetLinkedTasksBatchSchema.parse(args);
+        const batch = await evaClient.getLinkedTasksBatch(codes);
+        return { content: [{ type: "text", text: formatLinkedTasksBatch(batch, codes) }] };
       }
 
       case "get_statuses": {
