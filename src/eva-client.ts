@@ -378,6 +378,15 @@ export class EvaClient {
     return result;
   }
 
+  /** Получить список вложений задачи */
+  async getAttachments(code: string): Promise<AttachmentInfo[]> {
+    const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
+      filter: ["code", "==", code],
+      fields: ["attachments.**"],
+    });
+    return (raw.attachments ?? []).map((a) => this.mapAttachment(a));
+  }
+
   private mapTask(raw: EvaTaskRaw): TaskInfo {
     // status может быть объектом {id, name} или строкой
     const statusObj =

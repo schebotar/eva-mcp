@@ -95,6 +95,10 @@ const GetLinkedTasksBatchSchema = z.object({
   codes: z.array(z.string().min(1)).min(1, "Укажите хотя бы один код").max(50, "Не более 50 кодов за раз"),
 });
 
+const GetAttachmentsSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
+
 // --- Форматирование ---
 
 function formatTask(task: TaskInfo): string {
@@ -205,6 +209,28 @@ function formatTask(task: TaskInfo): string {
       );
     }
     lines.push("");
+  }
+
+  return lines.join("\n");
+}
+
+function formatAttachments(attachments: AttachmentInfo[]): string {
+  if (attachments.length === 0) {
+    return "Вложений нет.";
+  }
+
+  const lines: string[] = [
+    `# Вложения (${attachments.length})`,
+    "",
+    "| Имя | Тип | Размер | Дата | Автор |",
+    "|-----|-----|--------|------|-------|",
+  ];
+
+  for (const a of attachments) {
+    const size = a.fileSize !== null ? `${(a.fileSize / 1024).toFixed(1)} KB` : "—";
+    lines.push(
+      `| ${a.name} | ${a.mimeType ?? "—"} | ${size} | ${a.createdAt ?? "—"} | ${a.authorName ?? a.author ?? "—"} |`
+    );
   }
 
   return lines.join("\n");
@@ -795,6 +821,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
+      name: "get_attachments",
+      description:
+        "Получить список вложений задачи по её коду.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "Код задачи, например DEV-000003" },
+        },
+        required: ["code"],
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    {
       name: "get_statuses",
       description:
         "Получить справочник всех статусов задач с их ID и названиями. " +
@@ -920,6 +959,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { codes } = GetLinkedTasksBatchSchema.parse(args);
         const batch = await evaClient.getLinkedTasksBatch(codes);
         return { content: [{ type: "text", text: formatLinkedTasksBatch(batch, codes) }] };
+      }
+
+      case "get_attachments": {
+        const { code } = GetAttachmentsSchema.parse(args);
+        const attachments = await evaClient.getAttachments(code);
+        return { content: [{ type: "text", text: formatAttachments(attachments) }] };
       }
 
       case "get_statuses": {
