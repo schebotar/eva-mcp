@@ -309,6 +309,29 @@ export interface WorklogEntry {
   authorName: string | null;
 }
 
+// ── История изменений ───────────────────────────────────────
+
+/** Сырые данные записи истории статусов */
+export interface StatusHistoryEntryRaw {
+  id: string;
+  cmf_created_at?: string;
+  from_status_name?: string;
+  to_status_name?: string;
+  to_status_code?: string;
+  cmf_author?: { login?: string; name?: string } | null;
+}
+
+/** Нормализованная запись истории статусов */
+export interface StatusHistoryEntry {
+  id: string;
+  createdAt: string | null;
+  fromStatus: string | null;
+  toStatus: string | null;
+  toStatusCode: string | null;
+  author: string | null;
+  authorName: string | null;
+}
+
 // ── Связанные задачи ──────────────────────────────────────────
 
 /** Информация о связи через CmfRelationOption */

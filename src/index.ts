@@ -6,7 +6,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { EvaClient } from "./eva-client.js";
-import type { TaskInfo, CommentInfo, AttachmentInfo, WorklogEntry, CommentNode, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, ReferencingTasksInfo, RelationInfo, BqlFilter } from "./types.js";
+import type { TaskInfo, CommentInfo, AttachmentInfo, WorklogEntry, StatusHistoryEntry, CommentNode, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, ReferencingTasksInfo, RelationInfo, BqlFilter } from "./types.js";
 import { z } from "zod";
 
 // --- Конфигурация из переменных окружения ---
@@ -104,6 +104,10 @@ const GetWorklogSchema = z.object({
 });
 
 const GetFollowersSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
+
+const GetTaskHistorySchema = z.object({
   code: z.string().min(1, "code обязателен"),
 });
 
@@ -283,6 +287,28 @@ function formatFollowers(followers: PersonInfo[]): string {
   for (const f of followers) {
     const name = [f.firstName, f.lastName].filter(Boolean).join(" ") || f.name;
     lines.push(`| \`${f.login}\` | ${name} | ${f.email ?? "—"} |`);
+  }
+
+  return lines.join("\n");
+}
+
+function formatHistory(entries: StatusHistoryEntry[]): string {
+  if (entries.length === 0) {
+    return "История изменений статуса пуста.";
+  }
+
+  const lines: string[] = [
+    `# История изменений статуса (${entries.length})`,
+    "",
+    "| Дата | Автор | Из статуса | В статус |",
+    "|------|-------|-----------|----------|",
+  ];
+
+  for (const e of entries) {
+    const author = e.authorName ?? e.author ?? "—";
+    lines.push(
+      `| ${e.createdAt ?? "—"} | ${author} | ${e.fromStatus ?? "—"} | ${e.toStatus ?? "—"} |`
+    );
   }
 
   return lines.join("\n");
@@ -913,6 +939,20 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
+      name: "get_task_history",
+      description:
+        "Получить историю изменения статусов задачи. Возвращает записи с датой, автором, " +
+        "предыдущим и новым статусом.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "Код задачи, например DEV-000003" },
+        },
+        required: ["code"],
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    {
       name: "get_statuses",
       description:
         "Получить справочник всех статусов задач с их ID и названиями. " +
@@ -1056,6 +1096,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { code } = GetFollowersSchema.parse(args);
         const followers = await evaClient.getFollowers(code);
         return { content: [{ type: "text", text: formatFollowers(followers) }] };
+      }
+
+      case "get_task_history": {
+        const { code } = GetTaskHistorySchema.parse(args);
+        const entries = await evaClient.getTaskHistory(code);
+        return { content: [{ type: "text", text: formatHistory(entries) }] };
       }
 
       case "get_statuses": {

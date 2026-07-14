@@ -1,5 +1,5 @@
 import type {
-  TaskInfo, CommentInfo, AttachmentInfo, WorklogEntry, WorklogEntryRaw, JsonRpcRequest, JsonRpcResponse, JsonRpcError,
+  TaskInfo, CommentInfo, AttachmentInfo, WorklogEntry, WorklogEntryRaw, StatusHistoryEntry, StatusHistoryEntryRaw, JsonRpcRequest, JsonRpcResponse, JsonRpcError,
   EvaTaskRaw, EvaAttachmentRaw, EvaCommentRaw, BqlFilter, TaskListParams, TaskUpdateFields,
   ProjectInfo, EvaProjectRaw,
   PersonInfo, EvaPersonRaw,
@@ -412,6 +412,16 @@ export class EvaClient {
     return (raw.followers ?? []).map((f) => this.mapPerson(f));
   }
 
+  /** Получить историю изменения статусов задачи */
+  async getTaskHistory(code: string): Promise<StatusHistoryEntry[]> {
+    const result = await this.call<StatusHistoryEntryRaw[]>("CmfStatusHistory.list", {
+      fields: ["**"],
+      filter: ["obj_code", "==", code],
+      order_by: ["-cmf_created_at"],
+    });
+    return result.map((raw) => this.mapHistoryEntry(raw));
+  }
+
   private mapTask(raw: EvaTaskRaw): TaskInfo {
     // status может быть объектом {id, name} или строкой
     const statusObj =
@@ -482,6 +492,18 @@ export class EvaClient {
       createdAt: raw.cmf_created_at ?? null,
       author: raw.cmf_owner?.login ?? null,
       authorName: raw.cmf_owner?.name ?? null,
+    };
+  }
+
+  private mapHistoryEntry(raw: StatusHistoryEntryRaw): StatusHistoryEntry {
+    return {
+      id: raw.id,
+      createdAt: raw.cmf_created_at ?? null,
+      fromStatus: raw.from_status_name ?? null,
+      toStatus: raw.to_status_name ?? null,
+      toStatusCode: raw.to_status_code ?? null,
+      author: raw.cmf_author?.login ?? null,
+      authorName: raw.cmf_author?.name ?? null,
     };
   }
 
