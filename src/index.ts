@@ -6,7 +6,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { EvaClient } from "./eva-client.js";
-import type { TaskInfo, CommentInfo, AttachmentInfo, CommentNode, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, ReferencingTasksInfo, RelationInfo, BqlFilter } from "./types.js";
+import type { TaskInfo, CommentInfo, AttachmentInfo, WorklogEntry, CommentNode, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, ReferencingTasksInfo, RelationInfo, BqlFilter } from "./types.js";
 import { z } from "zod";
 
 // --- Конфигурация из переменных окружения ---
@@ -96,6 +96,14 @@ const GetLinkedTasksBatchSchema = z.object({
 });
 
 const GetAttachmentsSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
+
+const GetWorklogSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
+
+const GetFollowersSchema = z.object({
   code: z.string().min(1, "code обязателен"),
 });
 
@@ -231,6 +239,50 @@ function formatAttachments(attachments: AttachmentInfo[]): string {
     lines.push(
       `| ${a.name} | ${a.mimeType ?? "—"} | ${size} | ${a.createdAt ?? "—"} | ${a.authorName ?? a.author ?? "—"} |`
     );
+  }
+
+  return lines.join("\n");
+}
+
+function formatWorklog(entries: WorklogEntry[]): string {
+  if (entries.length === 0) {
+    return "Записей в журнале работ нет.";
+  }
+
+  const lines: string[] = [
+    `# Журнал работ (${entries.length})`,
+    "",
+    "| Дата | Пользователь | Время (мин) | Описание |",
+    "|------|-------------|-------------|----------|",
+  ];
+
+  for (const e of entries) {
+    const author = e.authorName ?? e.author ?? "—";
+    const time = e.timeSpent !== null ? `${e.timeSpent}` : "—";
+    const text = e.text.length > 80 ? e.text.slice(0, 77) + "..." : e.text;
+    lines.push(
+      `| ${e.startDate ?? e.createdAt ?? "—"} | ${author} | ${time} | ${text} |`
+    );
+  }
+
+  return lines.join("\n");
+}
+
+function formatFollowers(followers: PersonInfo[]): string {
+  if (followers.length === 0) {
+    return "Подписчиков нет.";
+  }
+
+  const lines: string[] = [
+    `# Подписчики (${followers.length})`,
+    "",
+    "| Логин | Имя | Email |",
+    "|-------|-----|-------|",
+  ];
+
+  for (const f of followers) {
+    const name = [f.firstName, f.lastName].filter(Boolean).join(" ") || f.name;
+    lines.push(`| \`${f.login}\` | ${name} | ${f.email ?? "—"} |`);
   }
 
   return lines.join("\n");
@@ -834,6 +886,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
     },
     {
+      name: "get_task_worklog",
+      description:
+        "Получить журнал работ (timetracker) по задаче. Возвращает записи с датой, пользователем, " +
+        "затраченным временем и описанием.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "Код задачи, например DEV-000003" },
+        },
+        required: ["code"],
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    {
+      name: "get_task_followers",
+      description:
+        "Получить список подписчиков задачи.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          code: { type: "string", description: "Код задачи, например DEV-000003" },
+        },
+        required: ["code"],
+      },
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
+    },
+    {
       name: "get_statuses",
       description:
         "Получить справочник всех статусов задач с их ID и названиями. " +
@@ -965,6 +1044,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { code } = GetAttachmentsSchema.parse(args);
         const attachments = await evaClient.getAttachments(code);
         return { content: [{ type: "text", text: formatAttachments(attachments) }] };
+      }
+
+      case "get_task_worklog": {
+        const { code } = GetWorklogSchema.parse(args);
+        const entries = await evaClient.getWorklog(code);
+        return { content: [{ type: "text", text: formatWorklog(entries) }] };
+      }
+
+      case "get_task_followers": {
+        const { code } = GetFollowersSchema.parse(args);
+        const followers = await evaClient.getFollowers(code);
+        return { content: [{ type: "text", text: formatFollowers(followers) }] };
       }
 
       case "get_statuses": {

@@ -1,5 +1,5 @@
 import type {
-  TaskInfo, CommentInfo, AttachmentInfo, JsonRpcRequest, JsonRpcResponse, JsonRpcError,
+  TaskInfo, CommentInfo, AttachmentInfo, WorklogEntry, WorklogEntryRaw, JsonRpcRequest, JsonRpcResponse, JsonRpcError,
   EvaTaskRaw, EvaAttachmentRaw, EvaCommentRaw, BqlFilter, TaskListParams, TaskUpdateFields,
   ProjectInfo, EvaProjectRaw,
   PersonInfo, EvaPersonRaw,
@@ -387,6 +387,31 @@ export class EvaClient {
     return (raw.attachments ?? []).map((a) => this.mapAttachment(a));
   }
 
+  /** Получить журнал работ (timetracker) по задаче */
+  async getWorklog(code: string): Promise<WorklogEntry[]> {
+    // Сначала получаем ID задачи
+    const resolved = await this.call<EvaTaskRaw>("CmfTask.get", {
+      filter: ["code", "==", code],
+      fields: ["id"],
+    });
+
+    const result = await this.call<WorklogEntryRaw[]>("CmfTimeTrackerHistory.list", {
+      fields: ["**"],
+      filter: ["parent", "==", resolved.id],
+    });
+
+    return result.map((raw) => this.mapWorklog(raw));
+  }
+
+  /** Получить подписчиков задачи */
+  async getFollowers(code: string): Promise<PersonInfo[]> {
+    const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
+      filter: ["code", "==", code],
+      fields: ["followers.**"],
+    });
+    return (raw.followers ?? []).map((f) => this.mapPerson(f));
+  }
+
   private mapTask(raw: EvaTaskRaw): TaskInfo {
     // status может быть объектом {id, name} или строкой
     const statusObj =
@@ -445,6 +470,18 @@ export class EvaClient {
       createdAt: raw.cmf_created_at ?? null,
       author: raw.cmf_author?.login ?? null,
       authorName: raw.cmf_author?.name ?? null,
+    };
+  }
+
+  private mapWorklog(raw: WorklogEntryRaw): WorklogEntry {
+    return {
+      id: raw.id,
+      timeSpent: raw.time_spent ?? null,
+      startDate: raw.start_date ?? null,
+      text: raw.text ?? "",
+      createdAt: raw.cmf_created_at ?? null,
+      author: raw.cmf_owner?.login ?? null,
+      authorName: raw.cmf_owner?.name ?? null,
     };
   }
 

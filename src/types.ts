@@ -145,6 +145,7 @@ export interface EvaTaskRaw {
   attachments?: EvaAttachmentRaw[];
   status_modified_at?: string;
   status_closed_at?: string;
+  followers?: EvaPersonRaw[];
 }
 
 /** Сырые данные комментария из API EvaProject */
@@ -283,6 +284,29 @@ export interface EvaStatusRaw {
   name?: string;
   code?: string;
   status_type?: string;
+}
+
+// ── Журнал работ ────────────────────────────────────────────
+
+/** Сырые данные записи журнала работ */
+export interface WorklogEntryRaw {
+  id: string;
+  time_spent?: number;
+  start_date?: string;
+  text?: string;
+  cmf_created_at?: string;
+  cmf_owner?: { login?: string; name?: string } | null;
+}
+
+/** Нормализованная запись журнала работ */
+export interface WorklogEntry {
+  id: string;
+  timeSpent: number | null;
+  startDate: string | null;
+  text: string;
+  createdAt: string | null;
+  author: string | null;
+  authorName: string | null;
 }
 
 // ── Связанные задачи ──────────────────────────────────────────
