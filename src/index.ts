@@ -6,7 +6,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { EvaClient } from "./eva-client.js";
-import type { TaskInfo, CommentInfo, CommentNode, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, ReferencingTasksInfo, RelationInfo, BqlFilter } from "./types.js";
+import type { TaskInfo, CommentInfo, AttachmentInfo, CommentNode, ProjectInfo, PersonInfo, StatusInfo, LinkedTasksInfo, ReferencingTasksInfo, RelationInfo, BqlFilter } from "./types.js";
 import { z } from "zod";
 
 // --- Конфигурация из переменных окружения ---
@@ -113,11 +113,98 @@ function formatTask(task: TaskInfo): string {
     `| **Исполнитель** | ${task.responsibleName ?? task.responsible ?? "—"} |`,
     `| **Создана** | ${task.createdAt ?? "—"} |`,
     `| **Обновлена** | ${task.updatedAt ?? "—"} |`,
-    "",
   ];
+
+  // Дополнительные поля — только если заполнены
+  if (task.deadline) {
+    lines.push(`| **Дедлайн** | ${task.deadline} |`);
+  }
+  if (task.estimateWork !== null) {
+    lines.push(`| **Оценка (ч)** | ${task.estimateWork} |`);
+  }
+  if (task.mark) {
+    lines.push(`| **Оценка** | ${task.mark} |`);
+  }
+  if (task.isMilestone) {
+    lines.push(`| **Веха** | ✅ Да |`);
+  }
+  if (task.epicCode) {
+    lines.push(`| **Epic** | \`${task.epicCode}\` — ${task.epicName ?? "—"} |`);
+  }
+  if (task.workflowCode) {
+    lines.push(`| **Бизнес-процесс** | \`${task.workflowCode}\` — ${task.workflowName ?? "—"} |`);
+  }
+  if (task.subprojectCode) {
+    lines.push(`| **Подпроект** | \`${task.subprojectCode}\` — ${task.subprojectName ?? "—"} |`);
+  }
+  if (task.statusModifiedAt) {
+    lines.push(`| **Статус изменён** | ${task.statusModifiedAt} |`);
+  }
+  if (task.statusClosedAt) {
+    lines.push(`| **Закрыта** | ${task.statusClosedAt} |`);
+  }
+  lines.push("");
+
+  if (task.executors.length > 0) {
+    lines.push("## Соисполнители", "");
+    for (let i = 0; i < task.executors.length; i++) {
+      const name = task.executorNames[i];
+      lines.push(`- \`${task.executors[i]}\`${name ? ` — ${name}` : ""}`);
+    }
+    lines.push("");
+  }
+
+  if (task.spectators.length > 0) {
+    lines.push("## Наблюдатели", "");
+    for (let i = 0; i < task.spectators.length; i++) {
+      const name = task.spectatorNames[i];
+      lines.push(`- \`${task.spectators[i]}\`${name ? ` — ${name}` : ""}`);
+    }
+    lines.push("");
+  }
+
+  if (task.tags.length > 0) {
+    lines.push(`**Теги:** ${task.tags.map((t) => `\`${t}\``).join(", ")}`, "");
+  }
+
+  if (task.lists.length > 0) {
+    lines.push("## Списки/спринты", "");
+    for (const l of task.lists) {
+      lines.push(`- \`${l.code || l.id}\` — ${l.name}`);
+    }
+    lines.push("");
+  }
+
+  if (task.components.length > 0) {
+    lines.push(`**Компоненты:** ${task.components.map((c) => `\`${c}\``).join(", ")}`, "");
+  }
+
+  if (task.waitingFor) {
+    lines.push(`**Ожидает ответа от:** \`${task.waitingFor}\`${task.waitingForName ? ` — ${task.waitingForName}` : ""}`, "");
+  }
 
   if (task.text) {
     lines.push("## Описание", "", task.text, "");
+  }
+
+  if (task.resultText) {
+    lines.push("## Результат", "", task.resultText, "");
+  }
+
+  if (task.attachments.length > 0) {
+    lines.push(
+      "## Вложения",
+      "",
+      "| Имя | Тип | Размер | Дата | Автор |",
+      "|-----|-----|--------|------|-------|"
+    );
+    for (const a of task.attachments) {
+      const size = a.fileSize !== null ? `${(a.fileSize / 1024).toFixed(1)} KB` : "—";
+      lines.push(
+        `| ${a.name} | ${a.mimeType ?? "—"} | ${size} | ${a.createdAt ?? "—"} | ${a.authorName ?? a.author ?? "—"} |`
+      );
+    }
+    lines.push("");
   }
 
   return lines.join("\n");
@@ -192,20 +279,36 @@ function formatTaskList(tasks: TaskInfo[], total?: number): string {
       ? `# Задачи (найдено: ${total}, показано: ${tasks.length})`
       : `# Задачи (${tasks.length})`;
 
+  const hasDeadline = tasks.some((t) => t.deadline !== null);
+
   const lines: string[] = [
     header,
     "",
-    "| Код | Название | Статус | Приоритет | Исполнитель |",
-    "|-----|----------|--------|-----------|-------------|",
   ];
 
+  if (hasDeadline) {
+    lines.push("| Код | Название | Статус | Приоритет | Исполнитель | Дедлайн |");
+    lines.push("|-----|----------|--------|-----------|-------------|----------|");
+  } else {
+    lines.push("| Код | Название | Статус | Приоритет | Исполнитель |");
+    lines.push("|-----|----------|--------|-----------|-------------|");
+  }
+
   for (const t of tasks) {
-    const name = t.name.length > 60 ? t.name.slice(0, 57) + "..." : t.name;
+    const taskName = t.name ?? "";
+    const name = taskName.length > 60 ? taskName.slice(0, 57) + "..." : taskName;
     const prio = t.priorityName ?? "—";
     const resp = t.responsibleName ?? t.responsible ?? "—";
-    lines.push(
-      `| \`${t.code}\` | ${name} | ${t.statusName ?? "—"} | ${prio} | ${resp} |`
-    );
+    if (hasDeadline) {
+      const dl = t.deadline ?? "—";
+      lines.push(
+        `| \`${t.code}\` | ${name} | ${t.statusName ?? "—"} | ${prio} | ${resp} | ${dl} |`
+      );
+    } else {
+      lines.push(
+        `| \`${t.code}\` | ${name} | ${t.statusName ?? "—"} | ${prio} | ${resp} |`
+      );
+    }
   }
 
   return lines.join("\n");

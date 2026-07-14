@@ -22,6 +22,17 @@ export interface JsonRpcError {
   };
 }
 
+/** Данные вложения */
+export interface AttachmentInfo {
+  id: string;
+  name: string;
+  fileSize: number | null;
+  mimeType: string | null;
+  createdAt: string | null;
+  author: string | null;
+  authorName: string | null;
+}
+
 /** Данные задачи из EvaProject */
 export interface TaskInfo {
   id: string;
@@ -41,6 +52,30 @@ export interface TaskInfo {
   priority: string | null;
   priorityName: string | null;
   typeName: string | null;
+  // ── Новые поля (фаза 1) ──
+  deadline: string | null;
+  resultText: string | null;
+  executors: string[];
+  executorNames: string[];
+  spectators: string[];
+  spectatorNames: string[];
+  tags: string[];
+  lists: { id: string; code: string; name: string }[];
+  isMilestone: boolean;
+  estimateWork: number | null;
+  epicCode: string | null;
+  epicName: string | null;
+  mark: string | null;
+  waitingFor: string | null;
+  waitingForName: string | null;
+  workflowCode: string | null;
+  workflowName: string | null;
+  components: string[];
+  subprojectCode: string | null;
+  subprojectName: string | null;
+  attachments: AttachmentInfo[];
+  statusModifiedAt: string | null;
+  statusClosedAt: string | null;
 }
 
 /** Данные комментария */
@@ -57,6 +92,16 @@ export interface CommentInfo {
 export interface CommentNode {
   comment: CommentInfo;
   replies: CommentNode[];
+}
+
+/** Сырые данные вложения из API EvaProject */
+export interface EvaAttachmentRaw {
+  id: string;
+  name?: string;
+  file_size?: number;
+  mime_type?: string;
+  cmf_created_at?: string;
+  cmf_author?: { login?: string; name?: string } | null;
 }
 
 /** Сырые данные задачи из API EvaProject */
@@ -82,6 +127,24 @@ export interface EvaTaskRaw {
   affected_tasks?: EvaTaskRaw[];
   in_tasks?: EvaRelationOptionRaw[];
   out_tasks?: EvaRelationOptionRaw[];
+  // ── Новые поля (фаза 1) ──
+  deadline?: string;
+  result_text?: string;
+  executors?: { login?: string; name?: string }[];
+  spectators?: { login?: string; name?: string }[];
+  tags?: { name?: string }[];
+  lists?: { id?: string; code?: string; name?: string }[];
+  is_milestone?: boolean;
+  estimate_work?: number;
+  epic?: { code?: string; name?: string } | null;
+  mark?: string;
+  waiting_for?: { login?: string; name?: string } | null;
+  workflow?: { code?: string; name?: string } | null;
+  components?: { name?: string }[];
+  subproject?: { code?: string; name?: string } | null;
+  attachments?: EvaAttachmentRaw[];
+  status_modified_at?: string;
+  status_closed_at?: string;
 }
 
 /** Сырые данные комментария из API EvaProject */

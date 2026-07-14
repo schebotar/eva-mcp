@@ -1,6 +1,6 @@
 import type {
-  TaskInfo, CommentInfo, JsonRpcRequest, JsonRpcResponse, JsonRpcError,
-  EvaTaskRaw, EvaCommentRaw, BqlFilter, TaskListParams, TaskUpdateFields,
+  TaskInfo, CommentInfo, AttachmentInfo, JsonRpcRequest, JsonRpcResponse, JsonRpcError,
+  EvaTaskRaw, EvaAttachmentRaw, EvaCommentRaw, BqlFilter, TaskListParams, TaskUpdateFields,
   ProjectInfo, EvaProjectRaw,
   PersonInfo, EvaPersonRaw,
   StatusInfo, EvaStatusRaw,
@@ -79,7 +79,7 @@ export class EvaClient {
   async getTask(code: string): Promise<TaskInfo> {
     const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
       filter: ["code", "==", code],
-      fields: ["**"],
+      fields: ["***"],
     });
 
     return this.mapTask(raw);
@@ -100,7 +100,7 @@ export class EvaClient {
   async getTaskWithComments(code: string): Promise<{ task: TaskInfo; comments: CommentInfo[]; mentionedTasks: string[] }> {
     const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
       filter: ["code", "==", code],
-      fields: ["**", "comments.**"],
+      fields: ["***", "comments.**", "attachments.**"],
     });
 
     const task = this.mapTask(raw);
@@ -121,7 +121,7 @@ export class EvaClient {
   async getTaskById(id: string): Promise<TaskInfo> {
     const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
       id,
-      fields: ["**"],
+      fields: ["***"],
     });
     return this.mapTask(raw);
   }
@@ -130,6 +130,7 @@ export class EvaClient {
   async listTasks(params: TaskListParams = {}): Promise<TaskInfo[]> {
     const kwargs: Record<string, unknown> = {
       fields: params.fields ?? ["**"],
+      no_meta: true,
     };
 
     if (params.filter) {
@@ -146,7 +147,7 @@ export class EvaClient {
 
   /** Получить количество задач по фильтру */
   async countTasks(filter?: BqlFilter | BqlFilter[]): Promise<number> {
-    const kwargs: Record<string, unknown> = {};
+    const kwargs: Record<string, unknown> = { no_meta: true };
     if (filter) {
       kwargs.filter = filter;
     }
@@ -399,6 +400,42 @@ export class EvaClient {
       priority: raw.priority ?? null,
       priorityName: raw.priority_name ?? null,
       typeName: raw.logic_type?.name ?? null,
+      // ── Новые поля (фаза 1) ──
+      deadline: raw.deadline ?? null,
+      resultText: raw.result_text ?? null,
+      executors: (raw.executors ?? []).map((e) => e.login ?? "").filter(Boolean),
+      executorNames: (raw.executors ?? []).map((e) => e.name ?? "").filter(Boolean),
+      spectators: (raw.spectators ?? []).map((s) => s.login ?? "").filter(Boolean),
+      spectatorNames: (raw.spectators ?? []).map((s) => s.name ?? "").filter(Boolean),
+      tags: (raw.tags ?? []).map((t) => t.name ?? "").filter(Boolean),
+      lists: (raw.lists ?? []).map((l) => ({ id: l.id ?? "", code: l.code ?? "", name: l.name ?? "" })),
+      isMilestone: raw.is_milestone ?? false,
+      estimateWork: raw.estimate_work ?? null,
+      epicCode: raw.epic?.code ?? null,
+      epicName: raw.epic?.name ?? null,
+      mark: raw.mark ?? null,
+      waitingFor: raw.waiting_for?.login ?? null,
+      waitingForName: raw.waiting_for?.name ?? null,
+      workflowCode: raw.workflow?.code ?? null,
+      workflowName: raw.workflow?.name ?? null,
+      components: (raw.components ?? []).map((c) => c.name ?? "").filter(Boolean),
+      subprojectCode: raw.subproject?.code ?? null,
+      subprojectName: raw.subproject?.name ?? null,
+      attachments: (raw.attachments ?? []).map((a) => this.mapAttachment(a)),
+      statusModifiedAt: raw.status_modified_at ?? null,
+      statusClosedAt: raw.status_closed_at ?? null,
+    };
+  }
+
+  private mapAttachment(raw: EvaAttachmentRaw): AttachmentInfo {
+    return {
+      id: raw.id,
+      name: raw.name ?? "",
+      fileSize: raw.file_size ?? null,
+      mimeType: raw.mime_type ?? null,
+      createdAt: raw.cmf_created_at ?? null,
+      author: raw.cmf_author?.login ?? null,
+      authorName: raw.cmf_author?.name ?? null,
     };
   }
 
