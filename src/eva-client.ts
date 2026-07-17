@@ -232,17 +232,10 @@ export class EvaClient {
 
   /** Создать новый спринт */
   async createSprint(fields: SprintUpdateFields): Promise<SprintInfo> {
-    const result = await this.call<unknown>("CmfList.create", {
+    const id = await this.call<string>("CmfList.create", {
       ...fields,
-      logic_type: "list.sprint:default",
+      sys_type: "sprint",
     });
-
-    // CmfList.create возвращает ID созданного объекта
-    const id = typeof result === "string" ? result : (result as Record<string, unknown>)?.id as string;
-    if (!id) {
-      throw new Error("CmfList.create: не удалось получить ID созданного спринта");
-    }
-
     const raw = await this.call<EvaSprintRaw>("CmfList.get", { id });
     return mapSprint(raw);
   }

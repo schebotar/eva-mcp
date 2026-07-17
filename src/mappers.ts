@@ -153,5 +153,6 @@ export function mapSprint(raw: EvaSprintRaw): SprintInfo {
     updatedAt: raw.cmf_modified_at ?? null,
     ownerLogin: raw.cmf_owner?.login ?? null,
     ownerName: raw.cmf_owner?.name ?? null,
+    sysType: raw.sys_type ?? null,
   };
 }
