@@ -203,7 +203,7 @@ export class EvaClient {
   async getSprint(code: string): Promise<SprintInfo> {
     const raw = await this.call<EvaSprintRaw>("CmfList.get", {
       filter: ["code", "==", code],
-      fields: ["***", "**", "*", "workflow.**", "scheme_wf.**", "parent.**", "tree_parent.**", "executors.**", "spectators.**", "members.**"],
+      fields: ["***", "workflow.**", "scheme_wf.**", "tree_parent.**"],
     });
     return mapSprint(raw);
   }
