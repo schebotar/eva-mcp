@@ -6,6 +6,7 @@ import type {
   StatusInfo, EvaStatusRaw,
   LinkedTasksInfo, ReferencingTasksInfo,
   EvaRelationOptionRaw, RelationInfo,
+  SprintInfo, EvaSprintRaw, SprintUpdateFields,
 } from "./types.js";
 /** HTTP-клиент для EvaProject JSON-RPC API */
 export class EvaClient {
@@ -191,6 +192,64 @@ export class EvaClient {
     const result = await this.call<EvaProjectRaw[]>("CmfProject.list", kwargs);
     return result.map((raw) => this.mapProject(raw));
   }
+
+  // ── Спринты/списки (CmfList) ──────────────────────────────────
+
+  /** Получить спринт по коду */
+  async getSprint(code: string): Promise<SprintInfo> {
+    const raw = await this.call<EvaSprintRaw>("CmfList.get", {
+      filter: ["code", "==", code],
+      fields: ["***"],
+    });
+    return this.mapSprint(raw);
+  }
+
+  /** Получить список спринтов с фильтрацией */
+  async listSprints(filter?: BqlFilter | BqlFilter[]): Promise<SprintInfo[]> {
+    const kwargs: Record<string, unknown> = {
+      fields: ["**"],
+      no_meta: true,
+    };
+    if (filter) {
+      kwargs.filter = filter;
+    }
+    const result = await this.call<EvaSprintRaw[]>("CmfList.list", kwargs);
+    return result.map((raw) => this.mapSprint(raw));
+  }
+
+  /** Получить количество спринтов по фильтру */
+  async countSprints(filter?: BqlFilter | BqlFilter[]): Promise<number> {
+    const kwargs: Record<string, unknown> = { no_meta: true };
+    if (filter) {
+      kwargs.filter = filter;
+    }
+    return this.call<number>("CmfList.count", kwargs);
+  }
+
+  /** Создать новый спринт */
+  async createSprint(fields: SprintUpdateFields): Promise<SprintInfo> {
+    const raw = await this.call<EvaSprintRaw>("CmfList.create", { ...fields });
+    return this.mapSprint(raw);
+  }
+
+  /** Обновить поля спринта */
+  async updateSprint(code: string, fields: SprintUpdateFields): Promise<SprintInfo> {
+    // Получаем ID спринта по коду
+    const resolved = await this.call<EvaSprintRaw>("CmfList.get", {
+      filter: ["code", "==", code],
+      fields: ["id"],
+    });
+
+    await this.call<EvaSprintRaw>(
+      "CmfList.update",
+      { ...fields },
+      { args: [resolved.id] }
+    );
+
+    return this.getSprint(code);
+  }
+
+  // ── Пользователи ──────────────────────────────────────────────
 
   /** Поиск пользователей по имени или логину */
   async searchUsers(query: string): Promise<PersonInfo[]> {
@@ -549,6 +608,27 @@ export class EvaClient {
       name: raw.name ?? "",
       code: raw.code ?? null,
       type: raw.status_type ?? null,
+    };
+  }
+
+  private mapSprint(raw: EvaSprintRaw): SprintInfo {
+    const statusObj =
+      typeof raw.status === "object" && raw.status !== null ? raw.status : null;
+    return {
+      id: raw.id,
+      code: raw.code ?? "",
+      name: raw.name ?? "",
+      projectCode: raw.parent?.code ?? null,
+      projectName: raw.parent?.name ?? null,
+      status: statusObj?.id ?? (typeof raw.status === "string" ? raw.status : null),
+      statusName: raw.status_name ?? statusObj?.name ?? null,
+      startDate: raw.start_date ?? null,
+      endDate: raw.end_date ?? null,
+      isDefault: raw.is_default ?? false,
+      createdAt: raw.cmf_created_at ?? null,
+      updatedAt: raw.cmf_modified_at ?? null,
+      ownerLogin: raw.cmf_owner?.login ?? null,
+      ownerName: raw.cmf_owner?.name ?? null,
     };
   }
 }

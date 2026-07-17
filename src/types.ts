@@ -374,3 +374,51 @@ export interface EvaRelationOptionRaw {
     choice_type?: string;
   } | null;
 }
+
+// ── Спринты/списки ────────────────────────────────────────────
+
+/** Нормализованные данные спринта (CmfList) */
+export interface SprintInfo {
+  id: string;
+  code: string;
+  name: string;
+  projectCode: string | null;
+  projectName: string | null;
+  status: string | null;
+  statusName: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  isDefault: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  ownerLogin: string | null;
+  ownerName: string | null;
+}
+
+/** Сырые данные спринта из API EvaProject */
+export interface EvaSprintRaw {
+  id: string;
+  code?: string;
+  name?: string;
+  parent?: { code?: string; name?: string } | null;
+  status?: { id?: string; name?: string } | string | null;
+  status_name?: string;
+  start_date?: string;
+  end_date?: string;
+  is_default?: boolean;
+  cmf_created_at?: string;
+  cmf_modified_at?: string;
+  cmf_owner?: { login?: string; name?: string } | null;
+}
+
+/** Поля для создания/обновления спринта */
+export interface SprintUpdateFields {
+  name?: string;
+  code?: string;
+  parent?: string;         // проект (код)
+  status?: string;
+  start_date?: string;
+  end_date?: string;
+  is_default?: boolean;
+  cmf_owner?: string;      // владелец (логин)
+}
