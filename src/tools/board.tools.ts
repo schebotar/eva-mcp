@@ -43,11 +43,9 @@ function isClosed(statusName: string | null): boolean {
 async function getSprintTasks(
   evaClient: EvaClient,
   sprintCode: string,
-  projectCode: string
+  _projectCode: string
 ): Promise<TaskInfo[]> {
-  const allTasks = await evaClient.listTasks({
-    filter: [["parent", "==", projectCode]],
-  });
+  const allTasks = await evaClient.listTasks();
   return allTasks.filter((t) =>
     t.lists.some((l) => l.code === sprintCode || l.id === sprintCode)
   );

@@ -31,12 +31,10 @@ const GetSprintSummarySchema = z.object({
 async function getTasksForSprint(
   evaClient: EvaClient,
   sprintCode: string,
-  projectCode: string
+  _projectCode: string
 ): Promise<TaskInfo[]> {
-  // Получаем все задачи проекта и фильтруем по спринту на клиенте
-  const allTasks = await evaClient.listTasks({
-    filter: [["parent", "==", projectCode]],
-  });
+  // Получаем все задачи и фильтруем по спринту на клиенте
+  const allTasks = await evaClient.listTasks();
   return allTasks.filter((t) =>
     t.lists.some((l) => l.code === sprintCode || l.id === sprintCode)
   );
