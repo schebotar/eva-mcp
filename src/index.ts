@@ -22,6 +22,7 @@ import { backlogToolDefs, handleBacklogToolCall } from "./tools/backlog.tools.js
 import { boardToolDefs, handleBoardToolCall } from "./tools/board.tools.js";
 import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
 import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
+import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
 
 // ── Конфигурация ───────────────────────────────────────────────
 
@@ -51,6 +52,7 @@ const ALL_TOOL_DEFS = [
   ...boardToolDefs,
   ...commentToolDefs,
   ...metricsToolDefs,
+  ...epicToolDefs,
 ];
 
 // Все обработчики в порядке приоритета
@@ -74,6 +76,7 @@ const ALL_HANDLERS: ToolHandler[] = [
   handleBoardToolCall,
   handleCommentToolCall,
   handleMetricsToolCall,
+  handleEpicToolCall,
 ];
 
 // ── MCP Server ─────────────────────────────────────────────────

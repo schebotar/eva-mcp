@@ -556,6 +556,7 @@ export class EvaClient {
       "CmfTask.timetracker_change_time",
       {
         time_spent: timeSpent,
+        remaining_estimate: 0,
         text: text ?? "",
         date: date ?? new Date().toISOString(),
       },
