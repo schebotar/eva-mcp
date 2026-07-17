@@ -197,6 +197,22 @@ export class EvaClient {
     return result.map((raw) => mapProject(raw));
   }
 
+  /** Найти ID папки Sprints в проекте */
+  async findSprintsFolderId(projectId: string): Promise<string | null> {
+    try {
+      const folders = await this.call<Array<{ id: string }>>(
+        "CmfFolder.list",
+        {
+          filter: [["parent_id", "==", projectId], ["code", "ILIKE", "%SPRINT%"]],
+          fields: ["id"],
+        }
+      );
+      return folders.length > 0 ? folders[0].id : null;
+    } catch {
+      return null;
+    }
+  }
+
   // ── Спринты (CmfList) ────────────────────────────────────
 
   /** Получить спринт по коду */

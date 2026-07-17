@@ -208,6 +208,9 @@ export async function handleSprintToolCall(
       // Получаем ID проекта по коду
       const projectInfo = await evaClient.getProject(project);
 
+      // Пытаемся найти папку Sprints в проекте для tree_parent_id
+      const treeParentId = await evaClient.findSprintsFolderId(projectInfo.id);
+
       const fields: Record<string, unknown> = {
         name,
         parent_id: projectInfo.id,
@@ -218,6 +221,7 @@ export async function handleSprintToolCall(
       if (start_date) fields.plan_start_date = start_date;
       if (end_date) fields.plan_end_date = end_date;
       if (owner) fields.cmf_owner = owner;
+      if (treeParentId) fields.tree_parent_id = treeParentId;
 
       const sprint = await evaClient.createSprint(fields);
       return { content: [{ type: "text", text: "✅ Спринт создан.\n\n" + formatSprint(sprint) }] };
