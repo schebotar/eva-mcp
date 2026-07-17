@@ -397,6 +397,8 @@ export interface SprintInfo {
   logicType: string | null;
   workflowCode: string | null;
   workflowName: string | null;
+  schemeWfCode: string | null;
+  schemeWfName: string | null;
 }
 
 /** Сырые данные спринта из API EvaProject */

@@ -157,5 +157,7 @@ export function mapSprint(raw: EvaSprintRaw): SprintInfo {
     logicType: typeof raw.logic_type === "object" && raw.logic_type ? raw.logic_type.code ?? null : (typeof raw.logic_type === "string" ? raw.logic_type : null),
     workflowCode: raw.workflow?.code ?? null,
     workflowName: raw.workflow?.name ?? null,
+    schemeWfCode: raw.scheme_wf?.code ?? null,
+    schemeWfName: raw.scheme_wf?.name ?? null,
   };
 }
