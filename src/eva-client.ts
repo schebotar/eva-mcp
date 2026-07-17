@@ -284,6 +284,15 @@ export class EvaClient {
     return this.getSprint(code);
   }
 
+  /** Удалить спринт */
+  async deleteSprint(code: string): Promise<void> {
+    const resolved = await this.call<EvaSprintRaw>("CmfList.get", {
+      filter: ["code", "==", code],
+      fields: ["id"],
+    });
+    await this.call<void>("CmfList.delete", {}, { args: [resolved.id] });
+  }
+
   // ── Пользователи ──────────────────────────────────────────────
 
   /** Поиск пользователей по имени или логину */

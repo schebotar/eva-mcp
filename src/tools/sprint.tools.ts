@@ -35,6 +35,10 @@ export const UpdateSprintSchema = z.object({
   owner: z.string().optional(),
 });
 
+const DeleteSprintSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+});
+
 // ── Форматтеры ─────────────────────────────────────────────────
 
 function formatSprint(sprint: SprintInfo): string {
@@ -166,6 +170,18 @@ export const sprintToolDefs = [
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
   },
+  {
+    name: "delete_sprint",
+    description: "Удалить спринт по коду.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        code: { type: "string", description: "Код спринта для удаления" },
+      },
+      required: ["code"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+  },
 ];
 
 // ── Обработчик вызовов ─────────────────────────────────────────
@@ -248,6 +264,12 @@ export async function handleSprintToolCall(
 
       const sprint = await evaClient.updateSprint(code, fields);
       return { content: [{ type: "text", text: "✅ Спринт обновлён.\n\n" + formatSprint(sprint) }] };
+    }
+
+    case "delete_sprint": {
+      const { code } = DeleteSprintSchema.parse(args);
+      await evaClient.deleteSprint(code);
+      return { content: [{ type: "text", text: `✅ Спринт \`${code}\` удалён.` }] };
     }
 
     default:
