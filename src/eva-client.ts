@@ -232,16 +232,27 @@ export class EvaClient {
 
   /** Создать новый спринт */
   async createSprint(fields: SprintUpdateFields): Promise<SprintInfo> {
-    const sprintId = await this.call<string>("CmfList.create", {
+    const result = await this.call<string | EvaSprintRaw>("CmfList.create", {
       ...fields,
       logic_type: "list.sprint:default",
     });
-    return this.getSprintById(sprintId);
+
+    // create может вернуть ID (строка) или полный объект
+    if (typeof result === "string") {
+      // Ищем созданный спринт по ID
+      const raw = await this.call<EvaSprintRaw>("CmfList.get", {
+        filter: ["id", "==", result],
+      });
+      return mapSprint(raw);
+    }
+    return mapSprint(result);
   }
 
   /** Получить спринт по ID */
   private async getSprintById(id: string): Promise<SprintInfo> {
-    const raw = await this.call<EvaSprintRaw>("CmfList.get", { id });
+    const raw = await this.call<EvaSprintRaw>("CmfList.get", {
+      filter: ["id", "==", id],
+    });
     return mapSprint(raw);
   }
 
