@@ -282,7 +282,8 @@ function buildSprintFilter(args: Record<string, unknown>): import("../types.js")
   const filters: import("../types.js").BqlFilter[] = [];
   if (!args) return filters;
 
-  if (args.project) filters.push(["parent.code", "==", args.project]);
+  // TODO: parent фильтр требует UUID
+  // if (args.project) filters.push(["parent_id", "==", args.project]);
   if (args.status) filters.push(["status", "==", args.status]);
   if (args.query) filters.push(["name", "ILIKE", `%${args.query}%`]);
 
