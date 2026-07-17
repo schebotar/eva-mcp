@@ -4,6 +4,22 @@ import type { TaskInfo } from "../types.js";
 import { buildTaskFilter } from "../helpers/build-task-filter.js";
 import { formatComments } from "../helpers/comment-tree.js";
 
+// ── Приоритеты: маппинг имён в числа (ChoiceInt) ──────────────
+
+const PRIORITY_MAP: Record<string, number> = {
+  "critical": 1, "критичный": 1, "критический": 1, "1": 1,
+  "high": 2, "высокий": 2, "2": 2,
+  "normal": 3, "средний": 3, "обычный": 3, "medium": 3, "3": 3,
+  "low": 4, "низкий": 4, "4": 4,
+};
+
+function mapPriority(value: string | number | undefined): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "number") return value;
+  const key = value.toLowerCase().trim();
+  return PRIORITY_MAP[key] ?? (parseInt(value, 10) || undefined);
+}
+
 // ── Zod-схемы ──────────────────────────────────────────────────
 
 export const GetTaskSchema = z.object({
@@ -410,7 +426,8 @@ export async function handleTaskToolCall(
       const fields: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined && value !== null) {
-          fields[key] = value;
+          // Маппим приоритет из строки в число
+          fields[key] = key === "priority" ? mapPriority(value as string | number) : value;
         }
       }
 
@@ -428,7 +445,7 @@ export async function handleTaskToolCall(
       const fields: Record<string, unknown> = { name, parent: project };
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined && value !== null) {
-          fields[key] = value;
+          fields[key] = key === "priority" ? mapPriority(value as string | number) : value;
         }
       }
 
