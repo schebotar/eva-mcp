@@ -234,7 +234,7 @@ export class EvaClient {
   async createSprint(fields: SprintUpdateFields): Promise<SprintInfo> {
     const id = await this.call<string>("CmfList.create", {
       ...fields,
-      sys_type: "sprint",
+      logic_type: "list.agile_sprint:default",
     });
     const raw = await this.call<EvaSprintRaw>("CmfList.get", { id });
     return mapSprint(raw);
