@@ -33,13 +33,13 @@ async function getTasksForSprint(
   sprintCode: string,
   projectCode: string
 ): Promise<TaskInfo[]> {
-  // Получаем все задачи проекта в этом спринте
-  return evaClient.listTasks({
-    filter: [
-      ["parent", "==", projectCode],
-      ["lists.code", "IN", [sprintCode]],
-    ],
+  // Получаем все задачи проекта и фильтруем по спринту на клиенте
+  const allTasks = await evaClient.listTasks({
+    filter: [["parent", "==", projectCode]],
   });
+  return allTasks.filter((t) =>
+    t.lists.some((l) => l.code === sprintCode || l.id === sprintCode)
+  );
 }
 
 /**

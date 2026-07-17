@@ -45,12 +45,12 @@ async function getSprintTasks(
   sprintCode: string,
   projectCode: string
 ): Promise<TaskInfo[]> {
-  return evaClient.listTasks({
-    filter: [
-      ["parent", "==", projectCode],
-      ["lists.code", "IN", [sprintCode]],
-    ],
+  const allTasks = await evaClient.listTasks({
+    filter: [["parent", "==", projectCode]],
   });
+  return allTasks.filter((t) =>
+    t.lists.some((l) => l.code === sprintCode || l.id === sprintCode)
+  );
 }
 
 /**
