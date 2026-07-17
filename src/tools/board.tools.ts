@@ -48,7 +48,7 @@ async function getSprintTasks(
   return evaClient.listTasks({
     filter: [
       ["parent", "==", projectCode],
-      ["lists", "IN", [sprintCode]],
+      ["lists.code", "IN", [sprintCode]],
     ],
   });
 }
@@ -393,7 +393,7 @@ export async function handleBoardToolCall(
       const filters: import("../types.js").BqlFilter[] = [];
       filters.push(["responsible", "==", user]);
       if (project) filters.push(["parent", "==", project]);
-      if (sprint) filters.push(["lists", "IN", [sprint]]);
+      if (sprint) filters.push(["lists.code", "IN", [sprint]]);
 
       const tasks = await evaClient.listTasks({
         filter: filters.length > 0 ? filters : undefined,
@@ -413,7 +413,7 @@ export async function handleBoardToolCall(
       const { project, sprint, days_without_movement } = IdentifyBlockersSchema.parse(args);
 
       const filters: import("../types.js").BqlFilter[] = [["parent", "==", project]];
-      if (sprint) filters.push(["lists", "IN", [sprint]]);
+      if (sprint) filters.push(["lists.code", "IN", [sprint]]);
 
       const tasks = await evaClient.listTasks({
         filter: filters.length > 0 ? filters : undefined,

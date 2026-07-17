@@ -487,8 +487,8 @@ export class EvaClient {
 
   /** Создать новую задачу */
   async createTask(fields: Record<string, unknown>): Promise<TaskInfo> {
-    const raw = await this.call<EvaTaskRaw>("CmfTask.create", { ...fields });
-    return this.getTask(raw.code);
+    const taskId = await this.call<string>("CmfTask.create", { ...fields });
+    return this.getTaskById(taskId);
   }
 
   /** Добавить комментарий к задаче */

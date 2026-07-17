@@ -24,7 +24,7 @@ export function buildTaskFilter(args: Record<string, unknown> | undefined): BqlF
     ]);
   }
   if (args.sprint) {
-    filters.push(["lists", "IN", [args.sprint]]);
+    filters.push(["lists.code", "IN", [args.sprint]]);
   }
 
   return filters;

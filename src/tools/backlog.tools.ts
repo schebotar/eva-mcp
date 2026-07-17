@@ -37,7 +37,7 @@ async function getTasksForSprint(
   return evaClient.listTasks({
     filter: [
       ["parent", "==", projectCode],
-      ["lists", "IN", [sprintCode]],
+      ["lists.code", "IN", [sprintCode]],
     ],
   });
 }
