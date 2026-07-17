@@ -53,6 +53,8 @@ function formatSprint(sprint: SprintInfo): string {
     `| **По умолчанию** | ${sprint.isDefault ? "✅ Да" : "Нет"} |`,
     `| **Создан** | ${sprint.createdAt ?? "—"} |`,
     `| **Обновлён** | ${sprint.updatedAt ?? "—"} |`,
+    `| **Тип** | \`${sprint.sysType ?? "—"}\` |`,
+    `| **LogicType** | \`${sprint.logicType ?? "—"}\` |`,
     "",
   ];
 

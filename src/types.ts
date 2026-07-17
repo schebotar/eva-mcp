@@ -394,6 +394,7 @@ export interface SprintInfo {
   ownerLogin: string | null;
   ownerName: string | null;
   sysType: string | null;
+  logicType: string | null;
 }
 
 /** Сырые данные спринта из API EvaProject */
@@ -411,6 +412,7 @@ export interface EvaSprintRaw {
   cmf_modified_at?: string;
   cmf_owner?: { login?: string; name?: string } | null;
   sys_type?: string;
+  logic_type?: { code?: string; name?: string } | string | null;
 }
 
 /** Поля для создания/обновления спринта */

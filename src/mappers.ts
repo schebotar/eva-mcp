@@ -154,5 +154,6 @@ export function mapSprint(raw: EvaSprintRaw): SprintInfo {
     ownerLogin: raw.cmf_owner?.login ?? null,
     ownerName: raw.cmf_owner?.name ?? null,
     sysType: raw.sys_type ?? null,
+    logicType: typeof raw.logic_type === "object" && raw.logic_type ? raw.logic_type.code ?? null : (typeof raw.logic_type === "string" ? raw.logic_type : null),
   };
 }
