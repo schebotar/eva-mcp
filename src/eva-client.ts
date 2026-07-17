@@ -232,10 +232,15 @@ export class EvaClient {
 
   /** Создать новый спринт */
   async createSprint(fields: SprintUpdateFields): Promise<SprintInfo> {
-    const id = await this.call<string>("CmfList.create", {
+    // Если передан код проекта — получаем ID
+    const kwargs: Record<string, unknown> = {
       ...fields,
-      logic_type: "list.agile_sprint:default",
-    });
+      logic_type: fields.logic_type ?? "list.agile_sprint:default",
+      executors: fields.executors ?? [],
+      spectators: fields.spectators ?? [],
+    };
+
+    const id = await this.call<string>("CmfList.create", kwargs);
     const raw = await this.call<EvaSprintRaw>("CmfList.get", { id });
     return mapSprint(raw);
   }

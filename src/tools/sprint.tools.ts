@@ -204,10 +204,19 @@ export async function handleSprintToolCall(
 
     case "create_sprint": {
       const { name, project, code, start_date, end_date, owner } = CreateSprintSchema.parse(args);
-      const fields: Record<string, unknown> = { name, parent: project };
+
+      // Получаем ID проекта по коду
+      const projectInfo = await evaClient.getProject(project);
+
+      const fields: Record<string, unknown> = {
+        name,
+        parent_id: projectInfo.id,
+        executors: [],
+        spectators: [],
+      };
       if (code) fields.code = code;
-      if (start_date) fields.start_date = start_date;
-      if (end_date) fields.end_date = end_date;
+      if (start_date) fields.plan_start_date = start_date;
+      if (end_date) fields.plan_end_date = end_date;
       if (owner) fields.cmf_owner = owner;
 
       const sprint = await evaClient.createSprint(fields);
@@ -220,8 +229,12 @@ export async function handleSprintToolCall(
       const fields: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined && value !== null) {
-          // Маппинг: owner → cmf_owner
-          fields[key === "owner" ? "cmf_owner" : key] = value;
+          // Маппинг: owner → cmf_owner, start_date → plan_start_date, end_date → plan_end_date
+          const mappedKey = key === "owner" ? "cmf_owner"
+            : key === "start_date" ? "plan_start_date"
+            : key === "end_date" ? "plan_end_date"
+            : key;
+          fields[mappedKey] = value;
         }
       }
 

@@ -411,8 +411,8 @@ export interface EvaSprintRaw {
   parent?: { code?: string; name?: string } | null;
   status?: { id?: string; name?: string } | string | null;
   status_name?: string;
-  start_date?: string;
-  end_date?: string;
+  plan_start_date?: string;
+  plan_end_date?: string;
   is_default?: boolean;
   cmf_created_at?: string;
   cmf_modified_at?: string;
@@ -428,10 +428,15 @@ export interface EvaSprintRaw {
 export interface SprintUpdateFields {
   name?: string;
   code?: string;
-  parent?: string;         // проект (код)
+  parent_id?: string;        // проект (ID)
+  tree_parent_id?: string;   // папка в дереве проекта
+  activity?: string;         // вид деятельности (ID)
   status?: string;
-  start_date?: string;
-  end_date?: string;
+  plan_start_date?: string;
+  plan_end_date?: string;
   is_default?: boolean;
-  cmf_owner?: string;      // владелец (логин)
+  cmf_owner?: string;
+  logic_type?: string;
+  executors?: string[];
+  spectators?: string[];
 }
