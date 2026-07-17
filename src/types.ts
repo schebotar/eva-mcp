@@ -399,6 +399,8 @@ export interface SprintInfo {
   workflowName: string | null;
   schemeWfCode: string | null;
   schemeWfName: string | null;
+  treeParentCode: string | null;
+  treeParentName: string | null;
 }
 
 /** Сырые данные спринта из API EvaProject */
@@ -419,6 +421,7 @@ export interface EvaSprintRaw {
   logic_type?: { code?: string; name?: string } | string | null;
   workflow?: { code?: string; name?: string } | null;
   scheme_wf?: { code?: string; name?: string } | null;
+  tree_parent?: { code?: string; name?: string } | null;
 }
 
 /** Поля для создания/обновления спринта */

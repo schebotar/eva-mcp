@@ -159,5 +159,7 @@ export function mapSprint(raw: EvaSprintRaw): SprintInfo {
     workflowName: raw.workflow?.name ?? null,
     schemeWfCode: raw.scheme_wf?.code ?? null,
     schemeWfName: raw.scheme_wf?.name ?? null,
+    treeParentCode: raw.tree_parent?.code ?? null,
+    treeParentName: raw.tree_parent?.name ?? null,
   };
 }

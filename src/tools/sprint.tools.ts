@@ -57,6 +57,7 @@ function formatSprint(sprint: SprintInfo): string {
     `| **LogicType** | \`${sprint.logicType ?? "—"}\` |`,
     `| **Workflow** | \`${sprint.workflowCode ?? "—"}\` — ${sprint.workflowName ?? "—"} |`,
     `| **SchemeWF** | \`${sprint.schemeWfCode ?? "—"}\` — ${sprint.schemeWfName ?? "—"} |`,
+    `| **Родитель** | ${sprint.treeParentName ?? "—"} (\`${sprint.treeParentCode ?? "—"}\`) |`,
     "",
   ];
 
