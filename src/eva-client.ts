@@ -197,11 +197,11 @@ export class EvaClient {
     return result.map((raw) => mapProject(raw));
   }
 
-  // ── Спринты (CmfSprint) ────────────────────────────────────
+  // ── Спринты (CmfList) ────────────────────────────────────
 
   /** Получить спринт по коду */
   async getSprint(code: string): Promise<SprintInfo> {
-    const raw = await this.call<EvaSprintRaw>("CmfSprint.get", {
+    const raw = await this.call<EvaSprintRaw>("CmfList.get", {
       filter: ["code", "==", code],
       fields: ["***"],
     });
@@ -217,7 +217,7 @@ export class EvaClient {
     if (filter) {
       kwargs.filter = filter;
     }
-    const result = await this.call<EvaSprintRaw[]>("CmfSprint.list", kwargs);
+    const result = await this.call<EvaSprintRaw[]>("CmfList.list", kwargs);
     return result.map((raw) => mapSprint(raw));
   }
 
@@ -227,25 +227,34 @@ export class EvaClient {
     if (filter) {
       kwargs.filter = filter;
     }
-    return this.call<number>("CmfSprint.count", kwargs);
+    return this.call<number>("CmfList.count", kwargs);
   }
 
   /** Создать новый спринт */
   async createSprint(fields: SprintUpdateFields): Promise<SprintInfo> {
-    const raw = await this.call<EvaSprintRaw>("CmfSprint.create", { ...fields });
+    const sprintId = await this.call<string>("CmfList.create", {
+      ...fields,
+      logic_type: "list.sprint:default",
+    });
+    return this.getSprintById(sprintId);
+  }
+
+  /** Получить спринт по ID */
+  private async getSprintById(id: string): Promise<SprintInfo> {
+    const raw = await this.call<EvaSprintRaw>("CmfList.get", { id });
     return mapSprint(raw);
   }
 
   /** Обновить поля спринта */
   async updateSprint(code: string, fields: SprintUpdateFields): Promise<SprintInfo> {
     // Получаем ID спринта по коду
-    const resolved = await this.call<EvaSprintRaw>("CmfSprint.get", {
+    const resolved = await this.call<EvaSprintRaw>("CmfList.get", {
       filter: ["code", "==", code],
       fields: ["id"],
     });
 
     await this.call<EvaSprintRaw>(
-      "CmfSprint.update",
+      "CmfList.update",
       { ...fields },
       { args: [resolved.id] }
     );
