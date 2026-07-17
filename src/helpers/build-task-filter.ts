@@ -10,7 +10,7 @@ export function buildTaskFilter(args: Record<string, unknown> | undefined): BqlF
 
   if (args.status) filters.push(["status", "==", args.status]);
   if (args.responsible) filters.push(["responsible", "==", args.responsible]);
-  if (args.project) filters.push(["parent", "==", args.project]);
+  if (args.project) filters.push(["parent.code", "==", args.project]);
   if (args.priority) filters.push(["priority", "==", args.priority]);
   if (args.type) filters.push(["logic_type", "==", args.type]);
   if (args.query) filters.push(["name", "ILIKE", `%${args.query}%`]);
