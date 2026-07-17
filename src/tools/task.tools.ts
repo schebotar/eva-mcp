@@ -55,6 +55,22 @@ export const UpdateTaskSchema = z.object({
   mark: z.string().optional(),
 });
 
+export const CreateTaskSchema = z.object({
+  name: z.string().min(1, "Название задачи обязательно"),
+  project: z.string().min(1, "Код проекта обязателен"),
+  text: z.string().optional(),
+  responsible: z.string().optional(),
+  priority: z.string().optional(),
+  type: z.string().optional(),
+  deadline: z.string().optional(),
+  lists: z.array(z.string()).optional(),
+  epic: z.string().optional(),
+  estimate_work: z.number().optional(),
+  tags: z.array(z.string()).optional(),
+  executors: z.array(z.string()).optional(),
+  parent_task: z.string().optional(),
+});
+
 // ── Форматтеры ─────────────────────────────────────────────────
 
 function formatTask(task: TaskInfo): string {
@@ -314,6 +330,32 @@ export const taskToolDefs = [
     },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
   },
+  {
+    name: "create_task",
+    description:
+      "Создать новую задачу в проекте. Обязательные поля: название и код проекта. " +
+      "Опционально: описание, исполнитель, приоритет, тип, дедлайн, спринты, эпик, оценка, теги.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        name: { type: "string", description: "Название задачи (обязательно)" },
+        project: { type: "string", description: "Код проекта (обязательно)" },
+        text: { type: "string", description: "Описание задачи (HTML/Markdown)" },
+        responsible: { type: "string", description: "Исполнитель (логин)" },
+        priority: { type: "string", description: "Приоритет (ID)" },
+        type: { type: "string", description: "Тип задачи (ID логического типа)" },
+        deadline: { type: "string", description: "Дедлайн (ISO-дата)" },
+        lists: { type: "array", items: { type: "string" }, description: "Спринты (коды)" },
+        epic: { type: "string", description: "Эпик (код задачи-эпика)" },
+        estimate_work: { type: "number", description: "Оценка в часах" },
+        tags: { type: "array", items: { type: "string" }, description: "Теги" },
+        executors: { type: "array", items: { type: "string" }, description: "Соисполнители (логины)" },
+        parent_task: { type: "string", description: "Родительская задача (код)" },
+      },
+      required: ["name", "project"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+  },
 ];
 
 // ── Обработчик вызовов ─────────────────────────────────────────
@@ -378,6 +420,20 @@ export async function handleTaskToolCall(
 
       const task = await evaClient.updateTask(code, fields);
       return { content: [{ type: "text", text: "✅ Задача обновлена.\n\n" + formatTask(task) }] };
+    }
+
+    case "create_task": {
+      const { name, project, ...rest } = CreateTaskSchema.parse(args);
+
+      const fields: Record<string, unknown> = { name, parent: project };
+      for (const [key, value] of Object.entries(rest)) {
+        if (value !== undefined && value !== null) {
+          fields[key] = value;
+        }
+      }
+
+      const task = await evaClient.createTask(fields);
+      return { content: [{ type: "text", text: "✅ Задача создана.\n\n" + formatTask(task) }] };
     }
 
     default:

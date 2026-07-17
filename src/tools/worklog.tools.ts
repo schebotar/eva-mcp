@@ -51,7 +51,30 @@ export const worklogToolDefs = [
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
+  {
+    name: "log_work",
+    description:
+      "Списать время по задаче. Принимает код задачи, количество минут и опционально описание и дату.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        code: { type: "string", description: "Код задачи" },
+        time_spent: { type: "number", description: "Затраченное время в минутах" },
+        text: { type: "string", description: "Описание работы (опционально)" },
+        date: { type: "string", description: "Дата (ISO, по умолчанию — сегодня)" },
+      },
+      required: ["code", "time_spent"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+  },
 ];
+
+const LogWorkSchema = z.object({
+  code: z.string().min(1, "Код задачи обязателен"),
+  time_spent: z.number().int().min(1, "Время должно быть > 0"),
+  text: z.string().optional(),
+  date: z.string().optional(),
+});
 
 // ── Обработчик ─────────────────────────────────────────────────
 
@@ -65,5 +88,17 @@ export async function handleWorklogToolCall(
     const entries = await evaClient.getWorklog(code);
     return { content: [{ type: "text", text: formatWorklog(entries) }] };
   }
+
+  if (name === "log_work") {
+    const { code, time_spent, text, date } = LogWorkSchema.parse(args);
+    await evaClient.logWork(code, time_spent, text, date);
+    return {
+      content: [{
+        type: "text",
+        text: `✅ Списано **${time_spent}** мин. по задаче \`${code}\`${text ? ": " + text : ""}`,
+      }],
+    };
+  }
+
   return null;
 }

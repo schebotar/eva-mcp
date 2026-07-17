@@ -20,6 +20,7 @@ import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js
 import { sprintToolDefs, handleSprintToolCall } from "./tools/sprint.tools.js";
 import { backlogToolDefs, handleBacklogToolCall } from "./tools/backlog.tools.js";
 import { boardToolDefs, handleBoardToolCall } from "./tools/board.tools.js";
+import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
 
 // ── Конфигурация ───────────────────────────────────────────────
 
@@ -47,6 +48,7 @@ const ALL_TOOL_DEFS = [
   ...sprintToolDefs,
   ...backlogToolDefs,
   ...boardToolDefs,
+  ...commentToolDefs,
 ];
 
 // Все обработчики в порядке приоритета
@@ -68,6 +70,7 @@ const ALL_HANDLERS: ToolHandler[] = [
   handleSprintToolCall,
   handleBacklogToolCall,
   handleBoardToolCall,
+  handleCommentToolCall,
 ];
 
 // ── MCP Server ─────────────────────────────────────────────────
