@@ -7,10 +7,11 @@ import { formatComments } from "../helpers/comment-tree.js";
 // ── Приоритеты: маппинг имён в числа (ChoiceInt) ──────────────
 
 const PRIORITY_MAP: Record<string, number> = {
-  "critical": 1, "критичный": 1, "критический": 1, "1": 1,
-  "high": 2, "высокий": 2, "2": 2,
-  "normal": 3, "средний": 3, "обычный": 3, "medium": 3, "3": 3,
-  "low": 4, "низкий": 4, "4": 4,
+  "none": 0, "нет": 0, "0": 0,
+  "low": 1, "низкий": 1, "1": 1,
+  "normal": 2, "средний": 2, "обычный": 2, "medium": 2, "2": 2,
+  "high": 3, "высокий": 3, "3": 3,
+  "critical": 4, "критичный": 4, "критический": 4, "4": 4,
 };
 
 function mapPriority(value: string | number | undefined): number | undefined {
