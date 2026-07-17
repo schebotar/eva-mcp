@@ -395,6 +395,8 @@ export interface SprintInfo {
   ownerName: string | null;
   sysType: string | null;
   logicType: string | null;
+  workflowCode: string | null;
+  workflowName: string | null;
 }
 
 /** Сырые данные спринта из API EvaProject */
@@ -413,6 +415,8 @@ export interface EvaSprintRaw {
   cmf_owner?: { login?: string; name?: string } | null;
   sys_type?: string;
   logic_type?: { code?: string; name?: string } | string | null;
+  workflow?: { code?: string; name?: string } | null;
+  scheme_wf?: { code?: string; name?: string } | null;
 }
 
 /** Поля для создания/обновления спринта */

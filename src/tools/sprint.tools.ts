@@ -55,6 +55,7 @@ function formatSprint(sprint: SprintInfo): string {
     `| **Обновлён** | ${sprint.updatedAt ?? "—"} |`,
     `| **Тип** | \`${sprint.sysType ?? "—"}\` |`,
     `| **LogicType** | \`${sprint.logicType ?? "—"}\` |`,
+    `| **Workflow** | \`${sprint.workflowCode ?? "—"}\` — ${sprint.workflowName ?? "—"} |`,
     "",
   ];
 
