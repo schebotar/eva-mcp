@@ -52,6 +52,7 @@ src/
 - **Мапперы**: `mapTask`, `mapComment`, `mapProject`, ... (приватные, внутри EvaClient)
 
 ### Обработка ошибок
+- При возникновении любых трудностей и ошибок **всегда сначала сверяйся** с документацией API EvaTeam, чтобы убедиться, что используемый метод/параметр актуален и корректен.
 - HTTP 401 → понятное сообщение: «Проверьте EVA_TOKEN»
 - JSON-RPC error → `EvaProject API: ошибка {code} — {message}`
 - Zod validation error → автоматически возвращается как `invalid arguments`
