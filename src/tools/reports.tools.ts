@@ -295,7 +295,9 @@ export async function handleReportsToolCall(
   switch (name) {
     case "get_sprint_review": {
       const { sprint, project } = SprintReviewSchema.parse(args);
-      const allTasks = await evaClient.listTasks();
+      const allTasks = await evaClient.listTasks({
+        filter: [["parent", "==", project]],
+      });
       const tasks = allTasks.filter((t) =>
         t.lists.some((l) => l.code === sprint || l.id === sprint)
       );
@@ -304,7 +306,9 @@ export async function handleReportsToolCall(
 
     case "get_sprint_retrospective": {
       const { sprint, project } = SprintReviewSchema.parse(args);
-      const allTasks = await evaClient.listTasks();
+      const allTasks = await evaClient.listTasks({
+        filter: [["parent", "==", project]],
+      });
       const tasks = allTasks.filter((t) =>
         t.lists.some((l) => l.code === sprint || l.id === sprint)
       );
@@ -326,7 +330,9 @@ export async function handleReportsToolCall(
 
     case "get_team_workload": {
       const { project, sprint } = TeamWorkloadSchema.parse(args);
-      const allTasks = await evaClient.listTasks();
+      const allTasks = await evaClient.listTasks({
+        filter: [["parent", "==", project]],
+      });
       let tasks = allTasks.filter((t) => t.projectCode === project);
       if (sprint) {
         tasks = tasks.filter((t) =>
@@ -338,7 +344,9 @@ export async function handleReportsToolCall(
 
     case "get_project_health": {
       const { project } = ProjectHealthSchema.parse(args);
-      const allTasks = await evaClient.listTasks();
+      const allTasks = await evaClient.listTasks({
+        filter: [["parent", "==", project]],
+      });
       const tasks = allTasks.filter((t) => t.projectCode === project);
       const allSprints = await evaClient.listSprints();
       const sprints = allSprints.filter((s) => s.projectCode === project);

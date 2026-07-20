@@ -278,7 +278,7 @@ export class EvaClient {
     await this.call<EvaSprintRaw>(
       "CmfList.update",
       { ...fields },
-      { args: [resolved.id] }
+      { filter: [["id", "==", resolved.id]] }
     );
 
     return this.getSprint(code);
@@ -290,7 +290,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["id"],
     });
-    await this.call<void>("CmfList.delete", {}, { args: [resolved.id] });
+    await this.call<void>("CmfList.delete", {}, { filter: [["id", "==", resolved.id]] });
   }
 
   // ── Пользователи ──────────────────────────────────────────────

@@ -249,10 +249,11 @@ export async function handleSprintToolCall(
       const fields: Record<string, unknown> = {};
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined && value !== null) {
-          // Маппинг: owner → cmf_owner, start_date → plan_start_date, end_date → plan_end_date
+          // Маппинг: owner → cmf_owner, start_date → plan_start_date, end_date → plan_end_date, status → status_id
           const mappedKey = key === "owner" ? "cmf_owner"
             : key === "start_date" ? "plan_start_date"
             : key === "end_date" ? "plan_end_date"
+            : key === "status" ? "status_id"
             : key;
           fields[mappedKey] = value;
         }
