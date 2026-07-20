@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { EvaClient } from "../eva-client.js";
+import { mdToHtml } from "../helpers/markdown.js";
 
 // ── Zod-схема ──────────────────────────────────────────────────
 
@@ -19,7 +20,7 @@ export const commentToolDefs = [
       type: "object" as const,
       properties: {
         code: { type: "string", description: "Код задачи, например DEV-000003" },
-        text: { type: "string", description: "Текст комментария (поддерживается HTML)" },
+        text: { type: "string", description: "Текст комментария (Markdown, будет сконвертирован в HTML)" },
       },
       required: ["code", "text"],
     },
@@ -36,7 +37,7 @@ export async function handleCommentToolCall(
 ): Promise<{ content: { type: "text"; text: string }[]; isError?: boolean } | null> {
   if (name === "add_comment") {
     const { code, text } = AddCommentSchema.parse(args);
-    const comment = await evaClient.addComment(code, text);
+    const comment = await evaClient.addComment(code, mdToHtml(text));
     return {
       content: [{
         type: "text",

@@ -3,6 +3,7 @@ import type { EvaClient } from "../eva-client.js";
 import type { TaskInfo } from "../types.js";
 import { buildTaskFilter } from "../helpers/build-task-filter.js";
 import { formatComments } from "../helpers/comment-tree.js";
+import { mdToHtml } from "../helpers/markdown.js";
 
 // ── Приоритеты: маппинг имён в числа (ChoiceInt) ──────────────
 
@@ -329,8 +330,8 @@ export const taskToolDefs = [
         priority: { type: "string", description: "Новый приоритет (ID приоритета)" },
         deadline: { type: "string", description: "Крайний срок (ISO-дата, например 2026-07-15)" },
         name: { type: "string", description: "Новое название задачи" },
-        text: { type: "string", description: "Новое описание (Markdown)" },
-        result_text: { type: "string", description: "Текст результата" },
+        text: { type: "string", description: "Новое описание (Markdown, будет сконвертировано в HTML)" },
+        result_text: { type: "string", description: "Текст результата (Markdown, будет сконвертирован в HTML)" },
         project: { type: "string", description: "Перенести в проект (код проекта)" },
         waiting_for: { type: "string", description: "Ожидает ответа от (логин пользователя)" },
         executors: { type: "array", items: { type: "string" }, description: "Соисполнители (логины пользователей)" },
@@ -357,7 +358,7 @@ export const taskToolDefs = [
       properties: {
         name: { type: "string", description: "Название задачи (обязательно)" },
         project: { type: "string", description: "Код проекта (обязательно)" },
-        text: { type: "string", description: "Описание задачи (HTML/Markdown)" },
+        text: { type: "string", description: "Описание задачи (Markdown, будет сконвертировано в HTML)" },
         responsible: { type: "string", description: "Исполнитель (логин)" },
         priority: { type: "string", description: "Приоритет (ID)" },
         type: { type: "string", description: "Тип задачи (ID логического типа)" },
@@ -422,9 +423,13 @@ export async function handleTaskToolCall(
     }
 
     case "update_task": {
-      const { code, ...rest } = UpdateTaskSchema.parse(args);
+      const { code, text, result_text, ...rest } = UpdateTaskSchema.parse(args);
 
       const fields: Record<string, unknown> = {};
+      // Конвертируем Markdown → HTML для текстовых полей
+      if (text !== undefined && text !== null) fields.text = mdToHtml(text);
+      if (result_text !== undefined && result_text !== null) fields.result_text = mdToHtml(result_text);
+
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined && value !== null) {
           // Маппим приоритет из строки в число
@@ -441,9 +446,12 @@ export async function handleTaskToolCall(
     }
 
     case "create_task": {
-      const { name, project, ...rest } = CreateTaskSchema.parse(args);
+      const { name, project, text, ...rest } = CreateTaskSchema.parse(args);
 
       const fields: Record<string, unknown> = { name, parent: project };
+      // Конвертируем Markdown → HTML для описания
+      if (text !== undefined && text !== null) fields.text = mdToHtml(text);
+
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined && value !== null) {
           fields[key] = key === "priority" ? mapPriority(value as string | number) : value;

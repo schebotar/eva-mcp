@@ -4,6 +4,7 @@ import type {
   EvaTaskRaw, EvaAttachmentRaw, EvaCommentRaw, WorklogEntryRaw, StatusHistoryEntryRaw,
   EvaProjectRaw, EvaPersonRaw, EvaStatusRaw, EvaSprintRaw,
 } from "./types.js";
+import { htmlToMd } from "./helpers/markdown.js";
 
 /** Маппинг сырых данных вложения → AttachmentInfo */
 export function mapAttachment(raw: EvaAttachmentRaw): AttachmentInfo {
@@ -26,7 +27,7 @@ export function mapTask(raw: EvaTaskRaw): TaskInfo {
     id: raw.id,
     code: raw.code,
     name: raw.name,
-    text: raw.text ?? "",
+    text: htmlToMd(raw.text ?? ""),
     status: statusObj?.id ?? (typeof raw.status === "string" ? raw.status : null),
     statusName: raw.status_name ?? statusObj?.name ?? null,
     author: raw.cmf_author?.login ?? null,
@@ -41,7 +42,7 @@ export function mapTask(raw: EvaTaskRaw): TaskInfo {
     priorityName: raw.priority_name ?? null,
     typeName: raw.logic_type?.name ?? null,
     deadline: raw.deadline ?? null,
-    resultText: raw.result_text ?? null,
+    resultText: raw.result_text ? htmlToMd(raw.result_text) : null,
     executors: (raw.executors ?? []).map((e: { login?: string; name?: string }) => e.login ?? "").filter(Boolean),
     executorNames: (raw.executors ?? []).map((e: { login?: string; name?: string }) => e.name ?? "").filter(Boolean),
     spectators: (raw.spectators ?? []).map((s: { login?: string; name?: string }) => s.login ?? "").filter(Boolean),
@@ -71,7 +72,7 @@ export function mapWorklog(raw: WorklogEntryRaw): WorklogEntry {
     id: raw.id,
     timeSpent: raw.time_spent ?? null,
     startDate: raw.start_date ?? null,
-    text: raw.text ?? "",
+    text: htmlToMd(raw.text ?? ""),
     createdAt: raw.cmf_created_at ?? null,
     author: raw.cmf_owner?.login ?? null,
     authorName: raw.cmf_owner?.name ?? null,
@@ -95,7 +96,7 @@ export function mapComment(raw: EvaCommentRaw): CommentInfo {
     id: raw.id ?? null,
     author: raw.cmf_author?.login ?? null,
     authorName: raw.cmf_author?.name ?? null,
-    text: raw.text ?? "",
+    text: htmlToMd(raw.text ?? ""),
     createdAt: raw.cmf_created_at ?? null,
     parentCode: raw.tree_parent?.id ?? null,
   };
@@ -106,7 +107,7 @@ export function mapProject(raw: EvaProjectRaw): ProjectInfo {
     id: raw.id,
     code: raw.code,
     name: raw.name,
-    description: raw.description ?? "",
+    description: htmlToMd(raw.description ?? ""),
     status: raw.status ?? null,
     statusName: raw.status_name ?? null,
     createdAt: raw.cmf_created_at ?? null,

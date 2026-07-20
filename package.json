@@ -18,10 +18,13 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "dotenv": "^16.4.5",
+    "marked": "^18.0.6",
+    "turndown": "^7.2.4",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@types/turndown": "^5.0.6",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0"
   }
