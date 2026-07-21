@@ -190,7 +190,7 @@ export const backlogToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        project: { type: "string", description: "Код проекта (обязательно)" },
+        project: { type: "string", description: "**Код проекта** (обязательно)" },
         limit: { type: "number", description: "Максимальное количество результатов" },
         offset: { type: "number", description: "Смещение для пагинации" },
       },
@@ -205,11 +205,11 @@ export const backlogToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        sprint: { type: "string", description: "Код спринта, например SPR-000001" },
+        sprint: { type: "string", description: "**Код спринта**, например SPR-000001" },
         task_codes: {
           type: "array",
           items: { type: "string" },
-          description: "Коды задач для добавления, например [\"MCP-1\", \"MCP-2\"]",
+          description: "**Коды задач** для добавления (массив строк, например `[\"MCP-1\", \"MCP-2\"]`)",
         },
       },
       required: ["sprint", "task_codes"],
@@ -223,11 +223,11 @@ export const backlogToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        sprint: { type: "string", description: "Код спринта" },
+        sprint: { type: "string", description: "**Код спринта**" },
         task_codes: {
           type: "array",
           items: { type: "string" },
-          description: "Коды задач для удаления из спринта",
+          description: "**Коды задач** для удаления из спринта (массив строк)",
         },
       },
       required: ["sprint", "task_codes"],
@@ -241,12 +241,12 @@ export const backlogToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        from_sprint: { type: "string", description: "Код исходного спринта" },
-        to_sprint: { type: "string", description: "Код целевого спринта" },
+        from_sprint: { type: "string", description: "**Код исходного спринта**" },
+        to_sprint: { type: "string", description: "**Код целевого спринта**" },
         task_codes: {
           type: "array",
           items: { type: "string" },
-          description: "Коды задач для переноса",
+          description: "**Коды задач** для переноса (массив строк)",
         },
       },
       required: ["from_sprint", "to_sprint", "task_codes"],
@@ -261,8 +261,8 @@ export const backlogToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        sprint: { type: "string", description: "Код спринта" },
-        project: { type: "string", description: "Код проекта" },
+        sprint: { type: "string", description: "**Код спринта**" },
+        project: { type: "string", description: "**Код проекта**" },
       },
       required: ["sprint", "project"],
     },

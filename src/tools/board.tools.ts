@@ -301,8 +301,8 @@ export const boardToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        sprint: { type: "string", description: "Код спринта" },
-        project: { type: "string", description: "Код проекта" },
+        sprint: { type: "string", description: "**Код спринта** (например `SPR-000001`)" },
+        project: { type: "string", description: "**Код проекта** — возьми из `search_projects`" },
         group_by: {
           type: "string",
           enum: ["status", "responsible"],
@@ -321,9 +321,9 @@ export const boardToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        user: { type: "string", description: "Логин пользователя (обязательно)" },
-        project: { type: "string", description: "Фильтр по проекту (код)" },
-        sprint: { type: "string", description: "Фильтр по спринту (код)" },
+        user: { type: "string", description: "**Логин** пользователя (email, обязательно) — например `user@domain.ru`" },
+        project: { type: "string", description: "Фильтр по проекту. **Код проекта**" },
+        sprint: { type: "string", description: "Фильтр по спринту. **Код спринта**" },
       },
       required: ["user"],
     },
@@ -337,8 +337,8 @@ export const boardToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        sprint: { type: "string", description: "Код спринта" },
-        project: { type: "string", description: "Код проекта" },
+        sprint: { type: "string", description: "**Код спринта**" },
+        project: { type: "string", description: "**Код проекта**" },
       },
       required: ["sprint", "project"],
     },
@@ -352,8 +352,8 @@ export const boardToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        project: { type: "string", description: "Код проекта (обязательно)" },
-        sprint: { type: "string", description: "Фильтр по спринту (код)" },
+        project: { type: "string", description: "**Код проекта** (обязательно)" },
+        sprint: { type: "string", description: "Фильтр по спринту. **Код спринта**" },
         days_without_movement: {
           type: "number",
           description: "Дней без движения (по умолчанию 3)",

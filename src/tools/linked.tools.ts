@@ -225,7 +225,7 @@ export const linkedToolDefs = [
         codes: {
           type: "array",
           items: { type: "string" },
-          description: "Коды задач, например [\"DEV-001\", \"DEV-002\"]",
+          description: "**Коды задач** (массив строк, например `[\"DEV-001\", \"DEV-002\"]`)",
         },
       },
       required: ["codes"],

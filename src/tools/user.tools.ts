@@ -63,7 +63,7 @@ export const userToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        query: { type: "string", description: "Текстовый поиск по имени или логину" },
+        query: { type: "string", description: "Текстовый поиск по **имени**, **фамилии** или **логину** (email) пользователя" },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },

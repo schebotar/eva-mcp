@@ -180,10 +180,13 @@ export class EvaClient {
 
   /** Получить проект по коду */
   async getProject(code: string): Promise<ProjectInfo> {
-    const raw = await this.call<EvaProjectRaw>("CmfProject.get", {
+    const raw = await this.call<EvaProjectRaw | null>("CmfProject.get", {
       filter: ["code", "==", code],
       fields: ["**"],
     });
+    if (!raw) {
+      throw new Error(`Проект с кодом "${code}" не найден. Проверьте код через search_projects.`);
+    }
     return mapProject(raw);
   }
 

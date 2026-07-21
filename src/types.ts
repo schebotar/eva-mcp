@@ -160,10 +160,10 @@ export interface EvaCommentRaw {
 // ── BQL (фильтры) ──────────────────────────────────────────────
 
 /** Операторы сравнения BQL */
-export type BqlOperator = "==" | "!=" | "ILIKE" | "NOT ILIKE" | "IN" | "NOT IN" | ">" | "<" | ">=" | "<=";
+export type BqlOperator = "==" | "!=" | "LIKE" | "NOT LIKE" | "ILIKE" | "NOT ILIKE" | "IN" | "NOT IN" | ">" | "<" | ">=" | "<=";
 
-/** BQL-фильтр: кортеж [поле, оператор, значение] или OR-группа */
-export type BqlFilter = [string, BqlOperator, unknown] | ["OR", ...BqlFilter[]];
+/** BQL-фильтр: кортеж [поле, оператор, значение], OR-группа или AND-группа */
+export type BqlFilter = [string, BqlOperator, unknown] | ["OR", ...BqlFilter[]] | ["AND", ...BqlFilter[]];
 
 // ── Параметры запросов ────────────────────────────────────────
 
@@ -238,7 +238,7 @@ export interface EvaProjectRaw {
   code: string;
   name: string;
   description?: string;
-  status?: string;
+  status?: { id?: string; name?: string; code?: string } | string | null;
   status_name?: string;
   cmf_created_at?: string;
   cmf_modified_at?: string;

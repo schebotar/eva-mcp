@@ -44,7 +44,7 @@ export const projectToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        code: { type: "string", description: "Код проекта в EvaProject" },
+        code: { type: "string", description: "**Код проекта** (например `mcp-test`). Регистр имеет значение. Возьми из `search_projects`" },
       },
       required: ["code"],
     },
@@ -56,7 +56,7 @@ export const projectToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        query: { type: "string", description: "Текстовый поиск по названию проекта" },
+        query: { type: "string", description: "Текстовый поиск по **названию** проекта" },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },

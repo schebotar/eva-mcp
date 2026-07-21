@@ -37,6 +37,10 @@ export const SearchTasksSchema = z.object({
   type: z.string().optional(),
   query: z.string().optional(),
   linked_to: z.string().optional(),
+  date_from: z.string().optional(),
+  date_to: z.string().optional(),
+  created_from: z.string().optional(),
+  created_to: z.string().optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().min(0).optional(),
 });
@@ -49,6 +53,10 @@ export const CountTasksSchema = z.object({
   type: z.string().optional(),
   query: z.string().optional(),
   linked_to: z.string().optional(),
+  date_from: z.string().optional(),
+  date_to: z.string().optional(),
+  created_from: z.string().optional(),
+  created_to: z.string().optional(),
 });
 
 export const UpdateTaskSchema = z.object({
@@ -280,17 +288,21 @@ export const taskToolDefs = [
     name: "search_tasks",
     description:
       "Поиск задач по фильтрам. Можно фильтровать по статусу, исполнителю, проекту, " +
-      "приоритету, типу и текстовому запросу. Возвращает список задач в виде таблицы.",
+      "приоритету, типу, текстовому запросу и датам изменения/создания. Возвращает список задач в виде таблицы.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        status: { type: "string", description: "Фильтр по статусу (ID статуса)" },
-        responsible: { type: "string", description: "Фильтр по исполнителю (логин)" },
-        project: { type: "string", description: "Фильтр по проекту (код проекта)" },
-        priority: { type: "string", description: "Фильтр по приоритету (ID приоритета)" },
+        status: { type: "string", description: "Фильтр по статусу. **Код** статуса (например `open`, `in_progress`) — возьми из `get_statuses`" },
+        responsible: { type: "string", description: "Фильтр по исполнителю. **Логин** пользователя (email) — возьми из `search_users`" },
+        project: { type: "string", description: "Фильтр по проекту. **Код проекта** (например `mcp-test`) — возьми из `search_projects`" },
+        priority: { type: "string", description: "Фильтр по приоритету: `low`, `normal`, `high`, `critical` или 1-4" },
         type: { type: "string", description: "Фильтр по типу задачи (ID типа)" },
-        query: { type: "string", description: "Текстовый поиск по названию задачи" },
-        linked_to: { type: "string", description: "Найти задачи, которые ссылаются на указанную (код задачи)" },
+        query: { type: "string", description: "Текстовый поиск по **названию** задачи (ищет подстроку в name)" },
+        linked_to: { type: "string", description: "Найти задачи, связанные с указанной. **Код задачи** (например `DEV-000003`)" },
+        date_from: { type: "string", description: "Дата изменения ОТ (ISO, например 2026-07-20). Фильтр по полю `cmf_modified_at`" },
+        date_to: { type: "string", description: "Дата изменения ДО (ISO). Фильтр по полю `cmf_modified_at`" },
+        created_from: { type: "string", description: "Дата создания ОТ (ISO). Фильтр по полю `cmf_created_at`" },
+        created_to: { type: "string", description: "Дата создания ДО (ISO). Фильтр по полю `cmf_created_at`" },
         limit: { type: "number", description: "Максимальное количество результатов" },
         offset: { type: "number", description: "Смещение для пагинации" },
       },
@@ -304,13 +316,17 @@ export const taskToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        status: { type: "string", description: "Фильтр по статусу (ID статуса)" },
-        responsible: { type: "string", description: "Фильтр по исполнителю (логин)" },
-        project: { type: "string", description: "Фильтр по проекту (код проекта)" },
-        priority: { type: "string", description: "Фильтр по приоритету (ID приоритета)" },
+        status: { type: "string", description: "Фильтр по статусу. **Код** статуса — возьми из `get_statuses`" },
+        responsible: { type: "string", description: "Фильтр по исполнителю. **Логин** (email) — возьми из `search_users`" },
+        project: { type: "string", description: "Фильтр по проекту. **Код проекта** — возьми из `search_projects`" },
+        priority: { type: "string", description: "Фильтр по приоритету: `low`, `normal`, `high`, `critical`" },
         type: { type: "string", description: "Фильтр по типу задачи (ID типа)" },
-        query: { type: "string", description: "Текстовый поиск по названию задачи" },
-        linked_to: { type: "string", description: "Найти задачи, которые ссылаются на указанную (код задачи)" },
+        query: { type: "string", description: "Текстовый поиск по **названию** задачи" },
+        linked_to: { type: "string", description: "Найти задачи, связанные с указанной. **Код задачи**" },
+        date_from: { type: "string", description: "Дата изменения ОТ (ISO). Фильтр по `cmf_modified_at`" },
+        date_to: { type: "string", description: "Дата изменения ДО (ISO). Фильтр по `cmf_modified_at`" },
+        created_from: { type: "string", description: "Дата создания ОТ (ISO). Фильтр по `cmf_created_at`" },
+        created_to: { type: "string", description: "Дата создания ДО (ISO). Фильтр по `cmf_created_at`" },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -325,24 +341,24 @@ export const taskToolDefs = [
       type: "object" as const,
       properties: {
         code: { type: "string", description: "Код задачи (обязательный)" },
-        status: { type: "string", description: "Новый статус (ID статуса)" },
-        responsible: { type: "string", description: "Новый исполнитель (логин)" },
-        priority: { type: "string", description: "Новый приоритет (ID приоритета)" },
+        status: { type: "string", description: "Новый статус. **Код** статуса — возьми из `get_statuses` (например `open`, `in_progress`)" },
+        responsible: { type: "string", description: "Новый исполнитель. **Логин** пользователя (email) — возьми из `search_users`" },
+        priority: { type: "string", description: "Новый приоритет: `low`, `normal`, `high`, `critical` или 1-4" },
         deadline: { type: "string", description: "Крайний срок (ISO-дата, например 2026-07-15)" },
         name: { type: "string", description: "Новое название задачи" },
         text: { type: "string", description: "Новое описание (Markdown, будет сконвертировано в HTML)" },
         result_text: { type: "string", description: "Текст результата (Markdown, будет сконвертирован в HTML)" },
-        project: { type: "string", description: "Перенести в проект (код проекта)" },
-        waiting_for: { type: "string", description: "Ожидает ответа от (логин пользователя)" },
-        executors: { type: "array", items: { type: "string" }, description: "Соисполнители (логины пользователей)" },
-        spectators: { type: "array", items: { type: "string" }, description: "Наблюдатели (логины пользователей)" },
+        project: { type: "string", description: "Перенести в другой проект. **Код проекта** — возьми из `search_projects`" },
+        waiting_for: { type: "string", description: "Ожидает ответа от. **Логин** пользователя (email)" },
+        executors: { type: "array", items: { type: "string" }, description: "Соисполнители. **Логины** пользователей (email)" },
+        spectators: { type: "array", items: { type: "string" }, description: "Наблюдатели. **Логины** пользователей (email)" },
         tags: { type: "array", items: { type: "string" }, description: "Теги (названия или ID тегов)" },
-        lists: { type: "array", items: { type: "string" }, description: "Списки/спринты (ID списков)" },
+        lists: { type: "array", items: { type: "string" }, description: "Спринты. **Коды спринтов** (например `SPR-000001`) — возьми из `search_sprints`" },
         is_milestone: { type: "boolean", description: "Отметить как веху (Milestone)" },
         estimate_work: { type: "number", description: "Исходная оценка в часах" },
-        parent_task: { type: "string", description: "Родительская задача (код)" },
-        epic: { type: "string", description: "Epic (код задачи-эпика)" },
-        mark: { type: "string", description: "Оценка" },
+        parent_task: { type: "string", description: "Родительская задача. **Код задачи**" },
+        epic: { type: "string", description: "Эпик. **Код задачи-эпика**" },
+        mark: { type: "string", description: "Оценка (строка, например `5`)" },
       },
       required: ["code"],
     },
@@ -357,18 +373,18 @@ export const taskToolDefs = [
       type: "object" as const,
       properties: {
         name: { type: "string", description: "Название задачи (обязательно)" },
-        project: { type: "string", description: "Код проекта (обязательно)" },
+        project: { type: "string", description: "**Код проекта**, в котором создать задачу — возьми из `search_projects`" },
         text: { type: "string", description: "Описание задачи (Markdown, будет сконвертировано в HTML)" },
-        responsible: { type: "string", description: "Исполнитель (логин)" },
-        priority: { type: "string", description: "Приоритет (ID)" },
+        responsible: { type: "string", description: "Исполнитель. **Логин** пользователя (email) — возьми из `search_users`" },
+        priority: { type: "string", description: "Приоритет: `low`, `normal`, `high`, `critical` или 1-4" },
         type: { type: "string", description: "Тип задачи (ID логического типа)" },
         deadline: { type: "string", description: "Дедлайн (ISO-дата)" },
-        lists: { type: "array", items: { type: "string" }, description: "Спринты (коды)" },
-        epic: { type: "string", description: "Эпик (код задачи-эпика)" },
+        lists: { type: "array", items: { type: "string" }, description: "Спринты. **Коды спринтов** — возьми из `search_sprints`" },
+        epic: { type: "string", description: "Эпик. **Код задачи-эпика**" },
         estimate_work: { type: "number", description: "Оценка в часах" },
-        tags: { type: "array", items: { type: "string" }, description: "Теги" },
-        executors: { type: "array", items: { type: "string" }, description: "Соисполнители (логины)" },
-        parent_task: { type: "string", description: "Родительская задача (код)" },
+        tags: { type: "array", items: { type: "string" }, description: "Теги (названия или ID тегов)" },
+        executors: { type: "array", items: { type: "string" }, description: "Соисполнители. **Логины** пользователей (email)" },
+        parent_task: { type: "string", description: "Родительская задача. **Код задачи**" },
       },
       required: ["name", "project"],
     },
@@ -432,8 +448,13 @@ export async function handleTaskToolCall(
 
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined && value !== null) {
-          // Маппим приоритет из строки в число
-          fields[key] = key === "priority" ? mapPriority(value as string | number) : value;
+          if (key === "project") {
+            // API ожидает поле parent для перемещения задачи в проект
+            fields["parent"] = value;
+          } else {
+            // Маппим приоритет из строки в число
+            fields[key] = key === "priority" ? mapPriority(value as string | number) : value;
+          }
         }
       }
 

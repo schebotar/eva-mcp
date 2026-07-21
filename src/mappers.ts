@@ -103,13 +103,15 @@ export function mapComment(raw: EvaCommentRaw): CommentInfo {
 }
 
 export function mapProject(raw: EvaProjectRaw): ProjectInfo {
+  const statusObj =
+    typeof raw.status === "object" && raw.status !== null ? raw.status : null;
   return {
     id: raw.id,
     code: raw.code,
     name: raw.name,
     description: htmlToMd(raw.description ?? ""),
-    status: raw.status ?? null,
-    statusName: raw.status_name ?? null,
+    status: statusObj?.id ?? (typeof raw.status === "string" ? raw.status : null),
+    statusName: raw.status_name ?? statusObj?.name ?? null,
     createdAt: raw.cmf_created_at ?? null,
     updatedAt: raw.cmf_modified_at ?? null,
   };
