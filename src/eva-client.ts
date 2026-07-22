@@ -94,7 +94,14 @@ export class EvaClient {
   async getTaskComments(code: string): Promise<CommentInfo[]> {
     const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
       filter: ["code", "==", code],
-      fields: ["comments.*"],
+      fields: [
+        "comments.id",
+        "comments.text",
+        "comments.cmf_created_at",
+        "comments.cmf_author.login",
+        "comments.cmf_author.name",
+        "comments.tree_parent.id",
+      ],
     });
 
     const comments = raw.comments ?? [];
@@ -105,7 +112,16 @@ export class EvaClient {
   async getTaskWithComments(code: string): Promise<{ task: TaskInfo; comments: CommentInfo[]; mentionedTasks: string[] }> {
     const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
       filter: ["code", "==", code],
-      fields: ["***", "comments.**", "attachments.**"],
+      fields: [
+        "***",
+        "comments.id",
+        "comments.text",
+        "comments.cmf_created_at",
+        "comments.cmf_author.login",
+        "comments.cmf_author.name",
+        "comments.tree_parent.id",
+        "attachments.**",
+      ],
     });
 
     const task = mapTask(raw);

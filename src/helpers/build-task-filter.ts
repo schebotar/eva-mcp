@@ -19,15 +19,7 @@ export function buildTaskFilter(args: Record<string, unknown> | undefined): BqlF
   if (args.date_to) filters.push(["cmf_modified_at", "<=", args.date_to]);
   if (args.created_from) filters.push(["cmf_created_at", ">=", args.created_from]);
   if (args.created_to) filters.push(["cmf_created_at", "<=", args.created_to]);
-  if (args.linked_to) {
-    const code = args.linked_to as string;
-    filters.push([
-      "OR",
-      ["parent_task", "==", code],
-      ["depended_tasks", "IN", [code]],
-      ["affected_tasks", "IN", [code]],
-    ]);
-  }
+  // linked_to больше не обрабатывается здесь — moved to handler (использует getLinkedTasks + ["code", "IN", codes])
   // lists.code не работает через API — спринт фильтруется клиентски в handler'е
   // if (args.sprint) filters.push(["lists.code", "IN", [args.sprint]]);
 

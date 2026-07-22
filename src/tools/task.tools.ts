@@ -415,10 +415,32 @@ export async function handleTaskToolCall(
         projectId = project.id;
       }
 
-      const filterArgs: Record<string, unknown> = { ...params as Record<string, unknown> };
+      // Извлекаем linked_to — обрабатывается отдельно, не через BQL
+      const { linked_to, ...restParams } = params as Record<string, unknown>;
+      const filterArgs: Record<string, unknown> = { ...restParams };
       if (projectId) filterArgs.project = projectId;
 
       const filters = buildTaskFilter(filterArgs);
+
+      // Если указан linked_to — получаем все связанные коды через getLinkedTasks
+      if (linked_to && typeof linked_to === "string") {
+        const linked = await evaClient.getLinkedTasks(linked_to);
+        const linkedCodes = new Set<string>();
+        if (linked.parentTask) linkedCodes.add(linked.parentTask.code);
+        for (const t of linked.childTasks) linkedCodes.add(t.code);
+        for (const t of linked.dependedTasks) linkedCodes.add(t.code);
+        for (const t of linked.affectedTasks) linkedCodes.add(t.code);
+        for (const r of linked.precedesTasks) linkedCodes.add(r.inTask.code);
+        for (const r of linked.followsTasks) linkedCodes.add(r.outTask.code);
+
+        if (linkedCodes.size > 0) {
+          filters.push(["code", "IN", [...linkedCodes]]);
+        } else {
+          // Нет связанных задач — возвращаем пустой результат
+          return { content: [{ type: "text", text: formatTaskList([], 0) }] };
+        }
+      }
+
       const slice: [number, number] | undefined =
         params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
 
@@ -444,10 +466,31 @@ export async function handleTaskToolCall(
         projectId = project.id;
       }
 
-      const filterArgs: Record<string, unknown> = { ...params as Record<string, unknown> };
+      // Извлекаем linked_to — обрабатывается отдельно, не через BQL
+      const { linked_to, ...restParams } = params as Record<string, unknown>;
+      const filterArgs: Record<string, unknown> = { ...restParams };
       if (projectId) filterArgs.project = projectId;
 
       const filters = buildTaskFilter(filterArgs);
+
+      // Если указан linked_to — получаем все связанные коды через getLinkedTasks
+      if (linked_to && typeof linked_to === "string") {
+        const linked = await evaClient.getLinkedTasks(linked_to);
+        const linkedCodes = new Set<string>();
+        if (linked.parentTask) linkedCodes.add(linked.parentTask.code);
+        for (const t of linked.childTasks) linkedCodes.add(t.code);
+        for (const t of linked.dependedTasks) linkedCodes.add(t.code);
+        for (const t of linked.affectedTasks) linkedCodes.add(t.code);
+        for (const r of linked.precedesTasks) linkedCodes.add(r.inTask.code);
+        for (const r of linked.followsTasks) linkedCodes.add(r.outTask.code);
+
+        if (linkedCodes.size > 0) {
+          filters.push(["code", "IN", [...linkedCodes]]);
+        } else {
+          return { content: [{ type: "text", text: "Найдено задач: **0**" }] };
+        }
+      }
+
       const count = await evaClient.countTasks(
         filters.length > 0 ? filters : undefined
       );
