@@ -12,7 +12,7 @@ import { EvaClient } from "./eva-client.js";
 import { taskToolDefs, handleTaskToolCall } from "./tools/task.tools.js";
 import { sprintToolDefs, handleSprintToolCall } from "./tools/sprint.tools.js";
 import { userToolDefs, handleUserToolCall } from "./tools/user.tools.js";
-// import { projectToolDefs, handleProjectToolCall } from "./tools/project.tools.js";
+import { projectToolDefs, handleProjectToolCall } from "./tools/project.tools.js";
 // import { linkedToolDefs, handleLinkedToolCall } from "./tools/linked.tools.js";
 // import { attachmentToolDefs, handleAttachmentToolCall } from "./tools/attachment.tools.js";
 // import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js";
@@ -41,7 +41,7 @@ const evaClient = new EvaClient(EVA_URL, EVA_TOKEN);
 
 const ALL_TOOL_DEFS = [
   ...taskToolDefs,
-  // ...projectToolDefs,
+  ...projectToolDefs,
   ...userToolDefs,
   // ...linkedToolDefs,
   // ...attachmentToolDefs,
@@ -66,7 +66,7 @@ type ToolHandler = (
 
 const ALL_HANDLERS: ToolHandler[] = [
   handleTaskToolCall,
-  // handleProjectToolCall,
+  handleProjectToolCall,
   handleUserToolCall,
   // handleLinkedToolCall,
   // handleAttachmentToolCall,
