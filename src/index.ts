@@ -10,20 +10,20 @@ import { EvaClient } from "./eva-client.js";
 
 // ── Tools modules ──────────────────────────────────────────────
 import { taskToolDefs, handleTaskToolCall } from "./tools/task.tools.js";
-import { projectToolDefs, handleProjectToolCall } from "./tools/project.tools.js";
-import { userToolDefs, handleUserToolCall } from "./tools/user.tools.js";
-import { linkedToolDefs, handleLinkedToolCall } from "./tools/linked.tools.js";
-import { attachmentToolDefs, handleAttachmentToolCall } from "./tools/attachment.tools.js";
-import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js";
-import { followerToolDefs, handleFollowerToolCall } from "./tools/follower.tools.js";
-import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js";
 import { sprintToolDefs, handleSprintToolCall } from "./tools/sprint.tools.js";
-import { backlogToolDefs, handleBacklogToolCall } from "./tools/backlog.tools.js";
-import { boardToolDefs, handleBoardToolCall } from "./tools/board.tools.js";
-import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
-import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
-import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
-import { reportsToolDefs, handleReportsToolCall } from "./tools/reports.tools.js";
+// import { projectToolDefs, handleProjectToolCall } from "./tools/project.tools.js";
+// import { userToolDefs, handleUserToolCall } from "./tools/user.tools.js";
+// import { linkedToolDefs, handleLinkedToolCall } from "./tools/linked.tools.js";
+// import { attachmentToolDefs, handleAttachmentToolCall } from "./tools/attachment.tools.js";
+// import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js";
+// import { followerToolDefs, handleFollowerToolCall } from "./tools/follower.tools.js";
+// import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js";
+// import { backlogToolDefs, handleBacklogToolCall } from "./tools/backlog.tools.js";
+// import { boardToolDefs, handleBoardToolCall } from "./tools/board.tools.js";
+// import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
+// import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
+// import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
+// import { reportsToolDefs, handleReportsToolCall } from "./tools/reports.tools.js";
 
 // ── Конфигурация ───────────────────────────────────────────────
 
@@ -41,20 +41,20 @@ const evaClient = new EvaClient(EVA_URL, EVA_TOKEN);
 
 const ALL_TOOL_DEFS = [
   ...taskToolDefs,
-  ...projectToolDefs,
-  ...userToolDefs,
-  ...linkedToolDefs,
-  ...attachmentToolDefs,
-  ...worklogToolDefs,
-  ...followerToolDefs,
-  ...historyToolDefs,
+  // ...projectToolDefs,
+  // ...userToolDefs,
+  // ...linkedToolDefs,
+  // ...attachmentToolDefs,
+  // ...worklogToolDefs,
+  // ...followerToolDefs,
+  // ...historyToolDefs,
   ...sprintToolDefs,
-  ...backlogToolDefs,
-  ...boardToolDefs,
-  ...commentToolDefs,
-  ...metricsToolDefs,
-  ...epicToolDefs,
-  ...reportsToolDefs,
+  // ...backlogToolDefs,
+  // ...boardToolDefs,
+  // ...commentToolDefs,
+  // ...metricsToolDefs,
+  // ...epicToolDefs,
+  // ...reportsToolDefs,
 ];
 
 // Все обработчики в порядке приоритета
@@ -66,20 +66,20 @@ type ToolHandler = (
 
 const ALL_HANDLERS: ToolHandler[] = [
   handleTaskToolCall,
-  handleProjectToolCall,
-  handleUserToolCall,
-  handleLinkedToolCall,
-  handleAttachmentToolCall,
-  handleWorklogToolCall,
-  handleFollowerToolCall,
-  handleHistoryToolCall,
+  // handleProjectToolCall,
+  // handleUserToolCall,
+  // handleLinkedToolCall,
+  // handleAttachmentToolCall,
+  // handleWorklogToolCall,
+  // handleFollowerToolCall,
+  // handleHistoryToolCall,
   handleSprintToolCall,
-  handleBacklogToolCall,
-  handleBoardToolCall,
-  handleCommentToolCall,
-  handleMetricsToolCall,
-  handleEpicToolCall,
-  handleReportsToolCall,
+  // handleBacklogToolCall,
+  // handleBoardToolCall,
+  // handleCommentToolCall,
+  // handleMetricsToolCall,
+  // handleEpicToolCall,
+  // handleReportsToolCall,
 ];
 
 // ── MCP Server ─────────────────────────────────────────────────

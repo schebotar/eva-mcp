@@ -132,56 +132,56 @@ export const sprintToolDefs = [
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
-  {
-    name: "create_sprint",
-    description:
-      "Создать новый спринт (список) в проекте. Требуется название и код проекта.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        name: { type: "string", description: "Название спринта (обязательно)" },
-        project: { type: "string", description: "Код проекта, в котором создаётся спринт (обязательно)" },
-        code: { type: "string", description: "Код спринта (если не указан — сгенерируется автоматически)" },
-        start_date: { type: "string", description: "Дата начала (ISO, например 2026-07-20)" },
-        end_date: { type: "string", description: "Дата окончания (ISO, например 2026-08-03)" },
-        owner: { type: "string", description: "Владелец спринта. **Логин** пользователя (email) — возьми из `search_users`" },
-      },
-      required: ["name", "project"],
-    },
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
-  },
-  {
-    name: "update_sprint",
-    description:
-      "Обновить поля спринта: название, статус, даты начала/окончания, признак " +
-      "«по умолчанию», владелец.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        code: { type: "string", description: "Код спринта (обязательно)" },
-        name: { type: "string", description: "Новое название спринта" },
-        status: { type: "string", description: "Новый статус. **Код** статуса — возьми из `get_statuses`" },
-        start_date: { type: "string", description: "Новая дата начала (ISO)" },
-        end_date: { type: "string", description: "Новая дата окончания (ISO)" },
-        is_default: { type: "boolean", description: "Сделать спринтом по умолчанию" },
-        owner: { type: "string", description: "Новый владелец. **Логин** пользователя (email) — возьми из `search_users`" },
-      },
-      required: ["code"],
-    },
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
-  },
-  {
-    name: "delete_sprint",
-    description: "Удалить спринт по коду.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        code: { type: "string", description: "Код спринта для удаления" },
-      },
-      required: ["code"],
-    },
-    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
-  },
+  // {
+  //   name: "create_sprint",
+  //   description:
+  //     "Создать новый спринт (список) в проекте. Требуется название и код проекта.",
+  //   inputSchema: {
+  //     type: "object" as const,
+  //     properties: {
+  //       name: { type: "string", description: "Название спринта (обязательно)" },
+  //       project: { type: "string", description: "Код проекта, в котором создаётся спринт (обязательно)" },
+  //       code: { type: "string", description: "Код спринта (если не указан — сгенерируется автоматически)" },
+  //       start_date: { type: "string", description: "Дата начала (ISO, например 2026-07-20)" },
+  //       end_date: { type: "string", description: "Дата окончания (ISO, например 2026-08-03)" },
+  //       owner: { type: "string", description: "Владелец спринта. **Логин** пользователя (email) — возьми из `search_users`" },
+  //     },
+  //     required: ["name", "project"],
+  //   },
+  //   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+  // },
+  // {
+  //   name: "update_sprint",
+  //   description:
+  //     "Обновить поля спринта: название, статус, даты начала/окончания, признак " +
+  //     "«по умолчанию», владелец.",
+  //   inputSchema: {
+  //     type: "object" as const,
+  //     properties: {
+  //       code: { type: "string", description: "Код спринта (обязательно)" },
+  //       name: { type: "string", description: "Новое название спринта" },
+  //       status: { type: "string", description: "Новый статус. **Код** статуса — возьми из `get_statuses`" },
+  //       start_date: { type: "string", description: "Новая дата начала (ISO)" },
+  //       end_date: { type: "string", description: "Новая дата окончания (ISO)" },
+  //       is_default: { type: "boolean", description: "Сделать спринтом по умолчанию" },
+  //       owner: { type: "string", description: "Новый владелец. **Логин** пользователя (email) — возьми из `search_users`" },
+  //     },
+  //     required: ["code"],
+  //   },
+  //   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+  // },
+  // {
+  //   name: "delete_sprint",
+  //   description: "Удалить спринт по коду.",
+  //   inputSchema: {
+  //     type: "object" as const,
+  //     properties: {
+  //       code: { type: "string", description: "Код спринта для удаления" },
+  //     },
+  //     required: ["code"],
+  //   },
+  //   annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+  // },
 ];
 
 // ── Обработчик вызовов ─────────────────────────────────────────
@@ -218,60 +218,60 @@ export async function handleSprintToolCall(
       return { content: [{ type: "text", text: formatSprintList(tasks, total) }] };
     }
 
-    case "create_sprint": {
-      const { name, project, code, start_date, end_date, owner } = CreateSprintSchema.parse(args);
+    // case "create_sprint": {
+    //   const { name, project, code, start_date, end_date, owner } = CreateSprintSchema.parse(args);
 
-      // Получаем ID проекта по коду
-      const projectInfo = await evaClient.getProject(project);
+    //   // Получаем ID проекта по коду
+    //   const projectInfo = await evaClient.getProject(project);
 
-      // Пытаемся найти папку Sprints в проекте для tree_parent_id
-      const treeParentId = await evaClient.findSprintsFolderId(projectInfo.id);
+    //   // Пытаемся найти папку Sprints в проекте для tree_parent_id
+    //   const treeParentId = await evaClient.findSprintsFolderId(projectInfo.id);
 
-      const fields: Record<string, unknown> = {
-        name,
-        parent_id: projectInfo.id,
-        executors: [],
-        spectators: [],
-      };
-      if (code) fields.code = code;
-      if (start_date) fields.plan_start_date = start_date;
-      if (end_date) fields.plan_end_date = end_date;
-      if (owner) fields.cmf_owner = owner;
-      if (treeParentId) fields.tree_parent_id = treeParentId;
+    //   const fields: Record<string, unknown> = {
+    //     name,
+    //     parent_id: projectInfo.id,
+    //     executors: [],
+    //     spectators: [],
+    //   };
+    //   if (code) fields.code = code;
+    //   if (start_date) fields.plan_start_date = start_date;
+    //   if (end_date) fields.plan_end_date = end_date;
+    //   if (owner) fields.cmf_owner = owner;
+    //   if (treeParentId) fields.tree_parent_id = treeParentId;
 
-      const sprint = await evaClient.createSprint(fields);
-      return { content: [{ type: "text", text: "✅ Спринт создан.\n\n" + formatSprint(sprint) }] };
-    }
+    //   const sprint = await evaClient.createSprint(fields);
+    //   return { content: [{ type: "text", text: "✅ Спринт создан.\n\n" + formatSprint(sprint) }] };
+    // }
 
-    case "update_sprint": {
-      const { code, ...rest } = UpdateSprintSchema.parse(args);
+    // case "update_sprint": {
+    //   const { code, ...rest } = UpdateSprintSchema.parse(args);
 
-      const fields: Record<string, unknown> = {};
-      for (const [key, value] of Object.entries(rest)) {
-        if (value !== undefined && value !== null) {
-          // Маппинг: owner → cmf_owner, start_date → plan_start_date, end_date → plan_end_date, status → status_id
-          const mappedKey = key === "owner" ? "cmf_owner"
-            : key === "start_date" ? "plan_start_date"
-            : key === "end_date" ? "plan_end_date"
-            : key === "status" ? "status_id"
-            : key;
-          fields[mappedKey] = value;
-        }
-      }
+    //   const fields: Record<string, unknown> = {};
+    //   for (const [key, value] of Object.entries(rest)) {
+    //     if (value !== undefined && value !== null) {
+    //       // Маппинг: owner → cmf_owner, start_date → plan_start_date, end_date → plan_end_date, status → status_id
+    //       const mappedKey = key === "owner" ? "cmf_owner"
+    //         : key === "start_date" ? "plan_start_date"
+    //         : key === "end_date" ? "plan_end_date"
+    //         : key === "status" ? "status_id"
+    //         : key;
+    //       fields[mappedKey] = value;
+    //     }
+    //   }
 
-      if (Object.keys(fields).length === 0) {
-        throw new Error("Не указаны поля для обновления");
-      }
+    //   if (Object.keys(fields).length === 0) {
+    //     throw new Error("Не указаны поля для обновления");
+    //   }
 
-      const sprint = await evaClient.updateSprint(code, fields);
-      return { content: [{ type: "text", text: "✅ Спринт обновлён.\n\n" + formatSprint(sprint) }] };
-    }
+    //   const sprint = await evaClient.updateSprint(code, fields);
+    //   return { content: [{ type: "text", text: "✅ Спринт обновлён.\n\n" + formatSprint(sprint) }] };
+    // }
 
-    case "delete_sprint": {
-      const { code } = DeleteSprintSchema.parse(args);
-      await evaClient.deleteSprint(code);
-      return { content: [{ type: "text", text: `✅ Спринт \`${code}\` удалён.` }] };
-    }
+    // case "delete_sprint": {
+    //   const { code } = DeleteSprintSchema.parse(args);
+    //   await evaClient.deleteSprint(code);
+    //   return { content: [{ type: "text", text: `✅ Спринт \`${code}\` удалён.` }] };
+    // }
 
     default:
       return null;
