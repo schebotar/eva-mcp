@@ -84,7 +84,7 @@ export class EvaClient {
   async getTask(code: string): Promise<TaskInfo> {
     const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
       filter: ["code", "==", code],
-      fields: ["***"],
+      fields: ["***", "priority_name"],
     });
 
     return mapTask(raw);
@@ -114,6 +114,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: [
         "***",
+        "priority_name",
         "comments.id",
         "comments.text",
         "comments.cmf_created_at",
@@ -150,7 +151,7 @@ export class EvaClient {
   /** Получить список задач с фильтрацией */
   async listTasks(params: TaskListParams = {}): Promise<TaskInfo[]> {
     const kwargs: Record<string, unknown> = {
-      fields: params.fields ?? ["**"],
+      fields: params.fields ?? ["**", "priority_name"],
       no_meta: true,
     };
 
