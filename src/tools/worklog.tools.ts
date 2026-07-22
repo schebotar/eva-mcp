@@ -11,9 +11,11 @@ const GetWorklogSchema = z.object({
 
 // ── Форматтер ──────────────────────────────────────────────────
 
-function formatWorklog(entries: WorklogEntry[]): string {
+function formatWorklog(entries: WorklogEntry[], taskCode?: string): string {
   if (entries.length === 0) {
-    return "Записей в журнале работ нет.";
+    return taskCode
+      ? `Записей в журнале работ для задачи \`${taskCode}\` нет.`
+      : "Записей в журнале работ нет.";
   }
 
   const lines: string[] = [
@@ -87,7 +89,7 @@ export async function handleWorklogToolCall(
   if (name === "get_task_worklog") {
     const { code } = GetWorklogSchema.parse(args);
     const entries = await evaClient.getWorklog(code);
-    return { content: [{ type: "text", text: formatWorklog(entries) }] };
+    return { content: [{ type: "text", text: formatWorklog(entries, code) }] };
   }
 
   if (name === "log_work") {

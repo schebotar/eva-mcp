@@ -25,7 +25,7 @@ function formatLinkedTasks(linked: LinkedTasksInfo): string {
     parts.push(
       "## Родительская задача",
       "",
-      `- \`${linked.parentTask.code}\` — ${linked.parentTask.name} (${linked.parentTask.statusName ?? "—"})`,
+      `- \`${linked.parentTask.code}\` — ${linked.parentTask.name} (${linked.parentTask.statusCode ?? linked.parentTask.statusName ?? "—"})`,
       ""
     );
   }
@@ -33,8 +33,9 @@ function formatLinkedTasks(linked: LinkedTasksInfo): string {
   if (linked.childTasks.length > 0) {
     parts.push("## Дочерние задачи", "");
     for (const t of linked.childTasks) {
+      const sprints = t.lists.length > 0 ? ` [${t.lists.map(l => l.code || l.name).join(", ")}]` : "";
       parts.push(
-        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+        `- \`${t.code}\` — ${t.name} (${t.statusCode ?? t.statusName ?? "—"})${sprints} | ${t.responsibleName ?? "—"}`
       );
     }
     parts.push("");
@@ -43,8 +44,9 @@ function formatLinkedTasks(linked: LinkedTasksInfo): string {
   if (linked.dependedTasks.length > 0) {
     parts.push("## Зависимые задачи (depended)", "");
     for (const t of linked.dependedTasks) {
+      const sprints = t.lists.length > 0 ? ` [${t.lists.map(l => l.code || l.name).join(", ")}]` : "";
       parts.push(
-        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+        `- \`${t.code}\` — ${t.name} (${t.statusCode ?? t.statusName ?? "—"})${sprints} | ${t.responsibleName ?? "—"}`
       );
     }
     parts.push("");
@@ -53,8 +55,9 @@ function formatLinkedTasks(linked: LinkedTasksInfo): string {
   if (linked.affectedTasks.length > 0) {
     parts.push("## Связанные задачи (affected)", "");
     for (const t of linked.affectedTasks) {
+      const sprints = t.lists.length > 0 ? ` [${t.lists.map(l => l.code || l.name).join(", ")}]` : "";
       parts.push(
-        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+        `- \`${t.code}\` — ${t.name} (${t.statusCode ?? t.statusName ?? "—"})${sprints} | ${t.responsibleName ?? "—"}`
       );
     }
     parts.push("");
@@ -106,7 +109,7 @@ function formatReferencingTasks(refs: ReferencingTasksInfo): string {
     parts.push("## Задачи, в которых эта задача — родительская", "");
     for (const t of refs.tasksWithThisAsParent) {
       parts.push(
-        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+        `- \`${t.code}\` — ${t.name} (${t.statusCode ?? t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
       );
     }
     parts.push("");
@@ -116,7 +119,7 @@ function formatReferencingTasks(refs: ReferencingTasksInfo): string {
     parts.push("## Задачи, которые зависят от этой (depended)", "");
     for (const t of refs.tasksWithThisAsDepended) {
       parts.push(
-        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+        `- \`${t.code}\` — ${t.name} (${t.statusCode ?? t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
       );
     }
     parts.push("");
@@ -126,7 +129,7 @@ function formatReferencingTasks(refs: ReferencingTasksInfo): string {
     parts.push("## Задачи, связанные с этой (affected)", "");
     for (const t of refs.tasksWithThisAsAffected) {
       parts.push(
-        `- \`${t.code}\` — ${t.name} (${t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
+        `- \`${t.code}\` — ${t.name} (${t.statusCode ?? t.statusName ?? "—"}) | ${t.responsibleName ?? "—"}`
       );
     }
     parts.push("");

@@ -41,6 +41,7 @@ export interface TaskInfo {
   text: string;
   status: string | null;
   statusName: string | null;
+  statusCode: string | null;
   author: string | null;
   authorName: string | null;
   responsible: string | null;
@@ -76,6 +77,9 @@ export interface TaskInfo {
   attachments: AttachmentInfo[];
   statusModifiedAt: string | null;
   statusClosedAt: string | null;
+  // ── Связи ──
+  parentTaskCode: string | null;
+  parentTaskName: string | null;
 }
 
 /** Данные комментария */
@@ -230,6 +234,8 @@ export interface ProjectInfo {
   statusName: string | null;
   createdAt: string | null;
   updatedAt: string | null;
+  workflowCode: string | null;
+  workflowName: string | null;
 }
 
 /** Сырые данные проекта из API */
@@ -242,6 +248,7 @@ export interface EvaProjectRaw {
   status_name?: string;
   cmf_created_at?: string;
   cmf_modified_at?: string;
+  workflow?: { code?: string; name?: string } | null;
 }
 
 // ── Пользователи ──────────────────────────────────────────────

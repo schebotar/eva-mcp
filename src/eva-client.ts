@@ -343,8 +343,62 @@ export class EvaClient {
     return result.map((raw) => mapPerson(raw));
   }
 
-  /** Получить список всех статусов */
-  async getStatuses(): Promise<StatusInfo[]> {
+  /** Получить список статусов. Если передан projectCode — пытается получить статусы проекта через workflow или задачи. */
+  async getStatuses(projectCode?: string): Promise<StatusInfo[]> {
+    if (projectCode) {
+      // 1. Получаем проект, чтобы узнать workflow
+      const project = await this.getProject(projectCode);
+
+      // 2. Пробуем получить статусы через workflow проекта
+      if (project.workflowCode) {
+        try {
+          const wfRaw = await this.call<Record<string, unknown>>("CmfWorkflow.get", {
+            filter: ["code", "==", project.workflowCode],
+            fields: ["**", "statuses.id", "statuses.code", "statuses.name", "statuses.status_type"],
+          });
+          const statuses = (wfRaw as Record<string, unknown>).statuses;
+          if (Array.isArray(statuses) && statuses.length > 0) {
+            return statuses.map((s: Record<string, unknown>) => mapStatus({
+              id: s.id as string,
+              name: s.name as string | undefined,
+              code: s.code as string | undefined,
+              status_type: s.status_type as string | undefined,
+            }));
+          }
+        } catch {
+          // workflow не поддерживается — пробуем другой способ
+        }
+      }
+
+      // 3. Фолбэк: собираем уникальные статусы из задач проекта
+      try {
+        const tasks = await this.call<EvaTaskRaw[]>("CmfTask.list", {
+          fields: ["status.id", "status.code", "status.name", "status.status_type"],
+          filter: ["parent_id", "==", project.id],
+          no_meta: true,
+          slice: [0, 200],
+        });
+        if (tasks.length > 0) {
+          const seen = new Map<string, StatusInfo>();
+          for (const t of tasks) {
+            const s = typeof t.status === "object" && t.status ? t.status : null;
+            if (s && s.id && !seen.has(s.id)) {
+              seen.set(s.id, {
+                id: s.id,
+                name: s.name ?? "",
+                code: s.code ?? null,
+                type: (s as Record<string, unknown>).status_type as string ?? null,
+              });
+            }
+          }
+          if (seen.size > 0) return [...seen.values()];
+        }
+      } catch {
+        // fallback к полному списку
+      }
+    }
+
+    // Без project_code или если все попытки не удались — возвращаем все статусы
     const result = await this.call<EvaStatusRaw[]>("CmfStatus.list", {
       fields: ["**"],
     });
@@ -357,10 +411,25 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: [
         "**",
+        "lists.id",
+        "lists.code",
+        "lists.name",
         "parent_task.**",
+        "parent_task.lists.id",
+        "parent_task.lists.code",
+        "parent_task.lists.name",
         "child_tasks.**",
+        "child_tasks.lists.id",
+        "child_tasks.lists.code",
+        "child_tasks.lists.name",
         "depended_tasks.**",
+        "depended_tasks.lists.id",
+        "depended_tasks.lists.code",
+        "depended_tasks.lists.name",
         "affected_tasks.**",
+        "affected_tasks.lists.id",
+        "affected_tasks.lists.code",
+        "affected_tasks.lists.name",
         "in_tasks.**",
         "in_tasks.out_link.code",
         "in_tasks.out_link.name",
@@ -445,10 +514,25 @@ export class EvaClient {
     const rawList = await this.call<Record<string, unknown>[]>("CmfTask.list", {
       fields: [
         "**",
+        "lists.id",
+        "lists.code",
+        "lists.name",
         "parent_task.**",
+        "parent_task.lists.id",
+        "parent_task.lists.code",
+        "parent_task.lists.name",
         "child_tasks.**",
+        "child_tasks.lists.id",
+        "child_tasks.lists.code",
+        "child_tasks.lists.name",
         "depended_tasks.**",
+        "depended_tasks.lists.id",
+        "depended_tasks.lists.code",
+        "depended_tasks.lists.name",
         "affected_tasks.**",
+        "affected_tasks.lists.id",
+        "affected_tasks.lists.code",
+        "affected_tasks.lists.name",
         "in_tasks.**",
         "in_tasks.out_link.code",
         "in_tasks.out_link.name",
@@ -524,6 +608,7 @@ export class EvaClient {
     const result = await this.call<WorklogEntryRaw[]>("CmfTimeTrackerHistory.list", {
       fields: ["**"],
       filter: ["parent", "==", resolved.id],
+      no_meta: true,
     });
 
     return result.map((raw) => mapWorklog(raw));

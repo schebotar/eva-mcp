@@ -33,14 +33,30 @@ npm start        # Запуск скомпилированной версии
 
 ```
 src/
-├── index.ts        # Точка входа: MCP-сервер, Zod-схемы, форматтеры, обработчики инструментов
-├── eva-client.ts   # HTTP-клиент для JSON-RPC API EvaProject (класс EvaClient)
-└── types.ts        # Все TypeScript-интерфейсы (TaskInfo, CommentInfo, BqlFilter, ...)
+├── index.ts              # Точка входа: MCP-сервер, регистрация инструментов
+├── eva-client.ts         # HTTP-клиент для JSON-RPC API EvaProject (класс EvaClient)
+├── types.ts              # Все TypeScript-интерфейсы (TaskInfo, CommentInfo, BqlFilter, ...)
+├── mappers.ts            # Мапперы сырых данных API → нормализованные (mapTask, mapProject, ...)
+├── helpers/
+│   ├── build-task-filter.ts  # Построение BQL-фильтров из аргументов инструментов
+│   ├── comment-tree.ts       # Форматирование дерева комментариев
+│   └── markdown.ts          # Конвертация HTML ↔ Markdown
+├── tools/
+│   ├── task.tools.ts     # get_task, search_tasks, count_tasks, update_task, create_task
+│   ├── board.tools.ts    # get_sprint_board, get_my_tasks, identify_blockers
+│   ├── sprint.tools.ts   # search_sprints, get_sprint, create_sprint, update_sprint
+│   ├── linked.tools.ts   # get_linked_tasks, get_referencing_tasks, get_linked_tasks_batch
+│   ├── worklog.tools.ts  # get_task_worklog, log_work
+│   ├── user.tools.ts     # search_users, get_statuses
+│   ├── project.tools.ts  # search_projects, get_project
+│   └── ...
+└── metrics/              # Scrum-метрики (burndown, velocity, cycle-time, cumulative-flow)
 ```
 
-- **`index.ts`**: Инициализирует `Server` из MCP SDK, регистрирует инструменты через `ListToolsRequestSchema` и обрабатывает вызовы через `CallToolRequestSchema`. Каждый инструмент: Zod-схема → handler → форматтер → Markdown-ответ.
-- **`eva-client.ts`**: Класс `EvaClient` с приватным методом `call<T>()` для JSON-RPC 2.2 вызовов. Публичные методы: `getTask`, `getTaskWithComments`, `listTasks`, `countTasks`, `updateTask`, `getProject`, `listProjects`, `searchUsers`, `getStatuses`, `getLinkedTasks`, `getReferencingTasks`, `getLinkedTasksBatch`. Приватные мапперы: `mapTask`, `mapComment`, `mapProject`, `mapPerson`, `mapStatus`.
-- **`types.ts`**: Интерфейсы для «сырых» данных API (`EvaTaskRaw`, `EvaCommentRaw`, …), нормализованных данных (`TaskInfo`, `CommentInfo`, …), BQL-фильтров (`BqlFilter`, `BqlOperator`) и параметров запросов.
+- **`index.ts`**: Инициализирует `Server` из MCP SDK, регистрирует инструменты.
+- **`eva-client.ts`**: Класс `EvaClient` с приватным методом `call<T>()` для JSON-RPC 2.2 вызовов.
+- **`mappers.ts`**: `mapTask`, `mapComment`, `mapProject`, `mapPerson`, `mapStatus`, `mapSprint`, `mapWorklog`, `mapHistoryEntry`.
+- **`types.ts`**: Интерфейсы для сырых данных API (`EvaTaskRaw`, ...) и нормализованных (`TaskInfo`, ...), BQL-фильтры.
 
 ## Соглашения
 
@@ -112,10 +128,47 @@ src/
 | `responsible` (исполнитель) | Relation | `["responsible.login", "==", "user@domain.ru"]` |
 | `status` | Relation | `["status.code", "==", "open"]` (код статуса) |
 | `epic` | Relation | `["epic", "IN", ["EPC-001"]]` |
-| `lists` (спринты) | M2M | ❌ `["lists.code", "IN", [...]]` не работает → клиентская фильтрация: `tasks.filter(t => t.lists.some(l => l.code === sprintCode))` |
+| `lists` (спринты) | M2M | ✅ `["lists.code", "IN", [sprintCode]]` — работает. Используется в `search_tasks(sprint=...)` и board tools |
 | `parent_task` | Relation | `["parent_task", "==", "DEV-000001"]` |
 | `spectators` | GenericM2M | `["spectators", "IN", ["user@test.ru"]]` |
 | `executors` | GenericM2M | `["executors", "IN", ["user@test.ru"]]` |
+| `priority` | ChoiceInt | `["priority", "==", 4]` — ⚠️ API ожидает **число** (0-4), строки конвертируются через `mapPriority()` |
+
+### Приоритеты (ChoiceInt)
+
+Приоритет в EvaProject — целочисленное поле. API ожидает числа, не строки.
+
+| Число | Название | Строковый алиас |
+|-------|----------|-----------------|
+| 0 | Нет | `none`, `нет` |
+| 1 | Низкий | `low`, `низкий` |
+| 2 | Средний | `normal`, `средний`, `обычный`, `medium` |
+| 3 | Высокий | `high`, `высокий` |
+| 4 | Критичный | `critical`, `критичный`, `критический` |
+
+**Конвертация** происходит в трёх местах:
+1. `create_task` / `update_task` — в handler'ах через `mapPriority()`
+2. `search_tasks` / `count_tasks` — в handler'ах перед `buildTaskFilter()`
+3. **Отображение**: `priorityName` из `raw.priority_name`, при отсутствии — вычисляется из числа через `PRIORITY_NUM_TO_NAME` в `mappers.ts`
+
+### Статусы и проекты
+
+`CmfStatus` — **глобальный справочник** без привязки к проекту. Поля `parent`/`parent_id` отсутствуют.
+
+`getStatuses(projectCode)` пытается получить статусы проекта в три шага:
+1. **Workflow**: проект → `workflow.code` → `CmfWorkflow.get` → извлечь `statuses`
+2. **Задачи**: `CmfTask.list` по проекту → собрать уникальные статусы из `status`
+3. **Глобально**: вернуть все статусы (фолбэк)
+
+Проект имеет поле `workflow` (бизнес-процесс). Добавлены `workflowCode`/`workflowName` в `ProjectInfo`.
+
+### Поля TaskInfo
+
+Актуальные поля нормализованной задачи:
+- `statusCode` — код статуса (из `status.code`), приоритетнее `status` (UUID) для отображения
+- `parentTaskCode` / `parentTaskName` — родительская задача (из `parent_task`)
+- `priority` / `priorityName` — приоритет (число строкой / название)
+- `lists` — спринты `[{ id, code, name }]`
 
 ## Важно
 - Не меняй сигнатуры публичных методов `EvaClient` без обновления соответствующих MCP-инструментов

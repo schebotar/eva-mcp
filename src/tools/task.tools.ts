@@ -34,6 +34,7 @@ export const SearchTasksSchema = z.object({
   type: z.string().optional(),
   query: z.string().optional(),
   linked_to: z.string().optional(),
+  sprint: z.string().optional(),
   date_from: z.string().optional(),
   date_to: z.string().optional(),
   created_from: z.string().optional(),
@@ -50,11 +51,11 @@ export const CountTasksSchema = z.object({
   type: z.string().optional(),
   query: z.string().optional(),
   linked_to: z.string().optional(),
+  sprint: z.string().optional(),
   date_from: z.string().optional(),
   date_to: z.string().optional(),
   created_from: z.string().optional(),
   created_to: z.string().optional(),
-  // sprint не поддерживается — клиентская фильтрация невозможна для count
 });
 
 export const UpdateTaskSchema = z.object({
@@ -105,7 +106,7 @@ function formatTask(task: TaskInfo): string {
     `|------|----------|`,
     `| **Код** | ${task.code} |`,
     `| **Название** | ${task.name} |`,
-    `| **Статус** | ${task.statusName ?? "—"} (\`${task.status ?? "—"}\`) |`,
+    `| **Статус** | ${task.statusName ?? "—"} (\`${task.statusCode ?? task.status ?? "—"}\`) |`,
     `| **Приоритет** | ${task.priorityName ?? "—"} |`,
     `| **Тип** | ${task.typeName ?? "—"} |`,
     `| **Проект** | ${task.projectName ?? "—"} (\`${task.projectCode ?? "—"}\`) |`,
@@ -129,6 +130,9 @@ function formatTask(task: TaskInfo): string {
   }
   if (task.epicCode) {
     lines.push(`| **Epic** | \`${task.epicCode}\` — ${task.epicName ?? "—"} |`);
+  }
+  if (task.parentTaskCode) {
+    lines.push(`| **Родительская задача** | \`${task.parentTaskCode}\` — ${task.parentTaskName ?? "—"} |`);
   }
   if (task.workflowCode) {
     lines.push(`| **Бизнес-процесс** | \`${task.workflowCode}\` — ${task.workflowName ?? "—"} |`);
@@ -242,11 +246,11 @@ function formatTaskList(tasks: TaskInfo[], total?: number): string {
     if (hasDeadline) {
       const dl = t.deadline ?? "—";
       lines.push(
-        `| \`${t.code}\` | ${name} | ${t.statusName ?? "—"} | ${prio} | ${resp} | ${dl} |`
+        `| \`${t.code}\` | ${name} | ${t.statusCode ?? t.statusName ?? "—"} | ${prio} | ${resp} | ${dl} |`
       );
     } else {
       lines.push(
-        `| \`${t.code}\` | ${name} | ${t.statusName ?? "—"} | ${prio} | ${resp} |`
+        `| \`${t.code}\` | ${name} | ${t.statusCode ?? t.statusName ?? "—"} | ${prio} | ${resp} |`
       );
     }
   }
@@ -297,6 +301,7 @@ export const taskToolDefs = [
         type: { type: "string", description: "Фильтр по типу задачи (ID логического типа)" },
         query: { type: "string", description: "Текстовый поиск по **названию** задачи (ищет подстроку в name)" },
         linked_to: { type: "string", description: "Найти задачи, связанные с указанной. **Код задачи** (например `DEV-000003`)" },
+        sprint: { type: "string", description: "Фильтр по спринту. **Код спринта** (например `SPR-000001`) — возьми из `search_sprints`" },
         date_from: { type: "string", description: "Дата изменения ОТ (ISO, например 2026-07-20). Фильтр по полю `cmf_modified_at`" },
         date_to: { type: "string", description: "Дата изменения ДО (ISO). Фильтр по полю `cmf_modified_at`" },
         created_from: { type: "string", description: "Дата создания ОТ (ISO). Фильтр по полю `cmf_created_at`" },
@@ -321,6 +326,7 @@ export const taskToolDefs = [
         type: { type: "string", description: "Фильтр по типу задачи (ID логического типа)" },
         query: { type: "string", description: "Текстовый поиск по **названию** задачи" },
         linked_to: { type: "string", description: "Найти задачи, связанные с указанной. **Код задачи**" },
+        sprint: { type: "string", description: "Фильтр по спринту. **Код спринта** (например `SPR-000001`)" },
         date_from: { type: "string", description: "Дата изменения ОТ (ISO). Фильтр по `cmf_modified_at`" },
         date_to: { type: "string", description: "Дата изменения ДО (ISO). Фильтр по `cmf_modified_at`" },
         created_from: { type: "string", description: "Дата создания ОТ (ISO). Фильтр по `cmf_created_at`" },
@@ -419,6 +425,8 @@ export async function handleTaskToolCall(
       const { linked_to, ...restParams } = params as Record<string, unknown>;
       const filterArgs: Record<string, unknown> = { ...restParams };
       if (projectId) filterArgs.project = projectId;
+      // Конвертируем строковый приоритет в число (API ожидает ChoiceInt)
+      if (filterArgs.priority) filterArgs.priority = mapPriority(String(filterArgs.priority));
 
       const filters = buildTaskFilter(filterArgs);
 
@@ -470,6 +478,8 @@ export async function handleTaskToolCall(
       const { linked_to, ...restParams } = params as Record<string, unknown>;
       const filterArgs: Record<string, unknown> = { ...restParams };
       if (projectId) filterArgs.project = projectId;
+      // Конвертируем строковый приоритет в число (API ожидает ChoiceInt)
+      if (filterArgs.priority) filterArgs.priority = mapPriority(String(filterArgs.priority));
 
       const filters = buildTaskFilter(filterArgs);
 
@@ -514,6 +524,10 @@ export async function handleTaskToolCall(
         if (key === "project") {
           // API ожидает поле parent для перемещения задачи в проект
           fields["parent"] = value;
+        } else if (key === "priority" && typeof value === "string") {
+          // API ожидает число, конвертируем строковый приоритет
+          const num = mapPriority(value);
+          if (num !== undefined) fields[key] = num;
         } else {
           fields[key] = value;
         }
@@ -536,7 +550,12 @@ export async function handleTaskToolCall(
 
       for (const [key, value] of Object.entries(rest)) {
         if (value !== undefined && value !== null) {
-          fields[key] = value;
+          if (key === "priority" && typeof value === "string") {
+            const num = mapPriority(value);
+            if (num !== undefined) fields[key] = num;
+          } else {
+            fields[key] = value;
+          }
         }
       }
 

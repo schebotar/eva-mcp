@@ -148,6 +148,41 @@ export type BqlOperator = "==" | "!=" | "LIKE" | "NOT LIKE" | "ILIKE" | "NOT ILI
 | `CmfFolder.list` | Список папок | `findSprintsFolderId` |
 | `CmfTimeTrackerHistory.list` | Журнал работ | `getWorklog` |
 | `CmfStatusHistory.list` | История статусов | `getTaskHistory` |
+| `CmfWorkflow.get` | Получить бизнес-процесс | Используется в `getStatuses(projectCode)` |
+
+## Важные нюансы API
+
+### Приоритет (ChoiceInt)
+
+Поле `priority` в задачах — целочисленное (`ChoiceInt`). API ожидает **число** (0-4), не строку.
+Передача `"high"` вместо `3` вызывает `pg: invalid input syntax for type integer`.
+
+Конвертация строк → числа: `mapPriority()` в `task.tools.ts` (экспортируется через `PRIORITY_MAP`).
+Обратный маппинг (число → название): `PRIORITY_NUM_TO_NAME` в `mappers.ts`.
+
+### Статусы (CmfStatus)
+
+`CmfStatus` — **глобальный справочник**, не привязан к проекту/workflow.
+- Нет полей `parent`, `parent_id`, `project`
+- `CmfStatus.list` не поддерживает фильтрацию по проекту
+- Для получения статусов проекта используется трёхуровневый подход: workflow → задачи → глобально
+
+### Workflow проекта
+
+Проект имеет поле `workflow: { code, name }` — бизнес-процесс.
+Доступен через `CmfProject.get` с `fields: ["**"]` (входит в `**`).
+Добавлен в `EvaProjectRaw` и `ProjectInfo` как `workflowCode`/`workflowName`.
+
+### Журнал работ (CmfTimeTrackerHistory)
+
+Фильтр: `["parent", "==", taskId]` где `taskId` — полный ID задачи (`CmfTask:uuid`).
+Рекомендуется `no_meta: true` для консистентности с другими list-вызовами.
+Поле `parent` подтверждено документацией API (KB-000187).
+
+### Спринты в BQL
+
+`["lists.code", "IN", [sprintCode]]` — **работает** в `CmfTask.list`.
+Используется в `search_tasks(sprint=...)` и `getSprintTasks()`.
 
 ## CmfList — Спринты/списки
 

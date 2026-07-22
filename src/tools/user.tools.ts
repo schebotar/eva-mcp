@@ -8,6 +8,10 @@ const SearchUsersSchema = z.object({
   query: z.string().min(1, "Укажите имя или логин для поиска"),
 });
 
+const GetStatusesSchema = z.object({
+  project_code: z.string().optional(),
+});
+
 // ── Форматтеры ─────────────────────────────────────────────────
 
 function formatUsers(users: PersonInfo[]): string {
@@ -75,7 +79,9 @@ export const userToolDefs = [
       "Полезно перед вызовом update_task, search_tasks и count_tasks — фильтрация по статусу требует **код** статуса (колонка Код).",
     inputSchema: {
       type: "object" as const,
-      properties: {},
+      properties: {
+        project_code: { type: "string", description: "Код проекта для фильтрации статусов. Если не указан — возвращаются все статусы." },
+      },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
@@ -96,7 +102,8 @@ export async function handleUserToolCall(
     }
 
     case "get_statuses": {
-      const statuses = await evaClient.getStatuses();
+      const { project_code } = GetStatusesSchema.parse(args ?? {});
+      const statuses = await evaClient.getStatuses(project_code);
       return { content: [{ type: "text", text: formatStatuses(statuses) }] };
     }
 

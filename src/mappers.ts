@@ -6,6 +6,15 @@ import type {
 } from "./types.js";
 import { htmlToMd } from "./helpers/markdown.js";
 
+/** Обратный маппинг: число → название приоритета */
+const PRIORITY_NUM_TO_NAME: Record<number, string> = {
+  0: "Нет",
+  1: "Низкий",
+  2: "Средний",
+  3: "Высокий",
+  4: "Критичный",
+};
+
 /** Маппинг сырых данных вложения → AttachmentInfo */
 export function mapAttachment(raw: EvaAttachmentRaw): AttachmentInfo {
   return {
@@ -30,6 +39,7 @@ export function mapTask(raw: EvaTaskRaw): TaskInfo {
     text: htmlToMd(raw.text ?? ""),
     status: statusObj?.id ?? (typeof raw.status === "string" ? raw.status : null),
     statusName: raw.status_name ?? statusObj?.name ?? null,
+    statusCode: statusObj?.code ?? null,
     author: raw.cmf_author?.login ?? null,
     authorName: raw.cmf_author?.name ?? null,
     responsible: raw.responsible?.login ?? null,
@@ -39,7 +49,7 @@ export function mapTask(raw: EvaTaskRaw): TaskInfo {
     createdAt: raw.cmf_created_at ?? null,
     updatedAt: raw.cmf_modified_at ?? null,
     priority: raw.priority ?? null,
-    priorityName: raw.priority_name ?? null,
+    priorityName: raw.priority_name ?? (raw.priority ? PRIORITY_NUM_TO_NAME[Number(raw.priority)] ?? null : null),
     typeName: raw.logic_type?.name ?? null,
     deadline: raw.deadline ?? null,
     resultText: raw.result_text ? htmlToMd(raw.result_text) : null,
@@ -64,6 +74,8 @@ export function mapTask(raw: EvaTaskRaw): TaskInfo {
     attachments: (raw.attachments ?? []).map((a: EvaAttachmentRaw) => mapAttachment(a)),
     statusModifiedAt: raw.status_modified_at ?? null,
     statusClosedAt: raw.status_closed_at ?? null,
+    parentTaskCode: raw.parent_task?.code ?? null,
+    parentTaskName: raw.parent_task?.name ?? null,
   };
 }
 
@@ -114,6 +126,8 @@ export function mapProject(raw: EvaProjectRaw): ProjectInfo {
     statusName: raw.status_name ?? statusObj?.name ?? null,
     createdAt: raw.cmf_created_at ?? null,
     updatedAt: raw.cmf_modified_at ?? null,
+    workflowCode: raw.workflow?.code ?? null,
+    workflowName: raw.workflow?.name ?? null,
   };
 }
 
