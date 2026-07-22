@@ -15,7 +15,7 @@ export const commentToolDefs = [
   {
     name: "add_comment",
     description:
-      "Добавить комментарий к задаче. Принимает код задачи и текст комментария (HTML).",
+      "Добавить комментарий к задаче. Принимает код задачи и текст комментария (Markdown, конвертируется в HTML).",
     inputSchema: {
       type: "object" as const,
       properties: {

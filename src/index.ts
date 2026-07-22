@@ -17,10 +17,10 @@ import { linkedToolDefs, handleLinkedToolCall } from "./tools/linked.tools.js";
 // import { attachmentToolDefs, handleAttachmentToolCall } from "./tools/attachment.tools.js";
 // import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js";
 // import { followerToolDefs, handleFollowerToolCall } from "./tools/follower.tools.js";
-// import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js";
+import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js";
 // import { backlogToolDefs, handleBacklogToolCall } from "./tools/backlog.tools.js";
 // import { boardToolDefs, handleBoardToolCall } from "./tools/board.tools.js";
-// import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
+import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
 // import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
 // import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
 // import { reportsToolDefs, handleReportsToolCall } from "./tools/reports.tools.js";
@@ -47,11 +47,11 @@ const ALL_TOOL_DEFS = [
   // ...attachmentToolDefs,
   // ...worklogToolDefs,
   // ...followerToolDefs,
-  // ...historyToolDefs,
+  ...historyToolDefs,
   ...sprintToolDefs,
   // ...backlogToolDefs,
   // ...boardToolDefs,
-  // ...commentToolDefs,
+  ...commentToolDefs,
   // ...metricsToolDefs,
   // ...epicToolDefs,
   // ...reportsToolDefs,
@@ -72,11 +72,11 @@ const ALL_HANDLERS: ToolHandler[] = [
   // handleAttachmentToolCall,
   // handleWorklogToolCall,
   // handleFollowerToolCall,
-  // handleHistoryToolCall,
+  handleHistoryToolCall,
   handleSprintToolCall,
   // handleBacklogToolCall,
   // handleBoardToolCall,
-  // handleCommentToolCall,
+  handleCommentToolCall,
   // handleMetricsToolCall,
   // handleEpicToolCall,
   // handleReportsToolCall,
