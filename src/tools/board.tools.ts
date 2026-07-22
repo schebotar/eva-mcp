@@ -45,10 +45,10 @@ async function getSprintTasks(
   sprintCode: string,
   _projectCode: string
 ): Promise<TaskInfo[]> {
-  const allTasks = await evaClient.listTasks();
-  return allTasks.filter((t) =>
-    t.lists.some((l) => l.code === sprintCode || l.id === sprintCode)
-  );
+  // Фильтруем задачи по спринту на стороне API
+  return evaClient.listTasks({
+    filter: ["lists.code", "IN", [sprintCode]],
+  });
 }
 
 /**

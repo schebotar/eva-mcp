@@ -173,31 +173,35 @@ export async function handleEpicToolCall(
   switch (name) {
     case "get_epic_summary": {
       const { epic, project } = EpicSummarySchema.parse(args);
-      // Находим все задачи, где epic = указанный код
-      const allTasks = await evaClient.listTasks();
-      const tasks = allTasks.filter((t) =>
-        t.epicCode?.toUpperCase() === epic.toUpperCase()
-      );
+      // Фильтруем на стороне API: проект + эпик
+      const tasks = await evaClient.listTasks({
+        filter: [
+          "AND",
+          ["parent.code", "==", project],
+          ["epic", "IN", [epic]],
+        ],
+      });
       return { content: [{ type: "text", text: formatEpicSummary(tasks, epic) }] };
     }
 
     case "get_roadmap": {
       const { project } = RoadmapSchema.parse(args);
-      // Получаем все задачи и спринты, фильтруем клиентски
-      const allTasks = await evaClient.listTasks();
-      const projectTasks = allTasks.filter((t) => t.projectCode === project);
+      // Фильтруем задачи по проекту на стороне API
+      const projectTasks = await evaClient.listTasks({
+        filter: ["parent.code", "==", project],
+      });
 
+      // Эпики — задачи без своего эпика, не закрытые, не вехи (клиентская фильтрация, т.к. API может не поддерживать фильтр «epic is null»)
       const epics = projectTasks.filter((t) =>
-        // Эпики — задачи, которые являются эпиками (is_milestone не подходит, ищем по логике)
         t.epicCode === null && !isClosed(t.statusName) && t.isMilestone === false
       ).slice(0, 20);
 
+      // Вехи — фильтруем клиентски по isMilestone (API может не поддерживать этот фильтр)
       const milestones = projectTasks.filter((t) => t.isMilestone);
 
-      const allSprints = await evaClient.listSprints();
-      const sprints = allSprints.filter((s) =>
-        s.projectCode === project && s.statusName !== "Закрыто"
-      );
+      // Спринты — фильтруем по проекту на стороне API
+      const allSprints = await evaClient.listSprints(["parent.code", "==", project]);
+      const sprints = allSprints.filter((s) => s.statusName !== "Закрыто");
 
       return { content: [{ type: "text", text: formatRoadmap(epics, sprints, milestones, project) }] };
     }
