@@ -25,9 +25,8 @@ function mapPriority(value: string | number | undefined): number | undefined {
 // ── Zod-схемы ──────────────────────────────────────────────────
 
 export const GetTaskSchema = z.object({
-  code: z.string().optional(),
-  id: z.string().optional(),
-}).refine((v) => v.code || v.id, "Укажите code или id");
+  code: z.string().min(1, "code обязателен"),
+});
 
 export const SearchTasksSchema = z.object({
   status: z.string().optional(),
@@ -280,8 +279,8 @@ export const taskToolDefs = [
       type: "object" as const,
       properties: {
         code: { type: "string", description: "Код задачи в EvaProject, например DEV-000003" },
-        id: { type: "string", description: "ID задачи (UUID). Используется если code не указан" },
       },
+      required: ["code"],
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
@@ -402,14 +401,10 @@ export async function handleTaskToolCall(
 ): Promise<{ content: { type: "text"; text: string }[]; isError?: boolean } | null> {
   switch (name) {
     case "get_task": {
-      const { code, id } = GetTaskSchema.parse(args);
-      if (code) {
-        const { task, comments, mentionedTasks } = await evaClient.getTaskWithComments(code);
-        const text = formatTask(task) + "\n---\n\n" + formatComments(comments) + formatMentionedTasks(mentionedTasks);
-        return { content: [{ type: "text", text }] };
-      }
-      const task = await evaClient.getTaskById(id!);
-      return { content: [{ type: "text", text: formatTask(task) }] };
+      const { code } = GetTaskSchema.parse(args);
+      const { task, comments, mentionedTasks } = await evaClient.getTaskWithComments(code);
+      const text = formatTask(task) + "\n---\n\n" + formatComments(comments) + formatMentionedTasks(mentionedTasks);
+      return { content: [{ type: "text", text }] };
     }
 
     case "search_tasks": {

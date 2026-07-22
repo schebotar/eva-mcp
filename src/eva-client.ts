@@ -228,13 +228,16 @@ export class EvaClient {
   }
 
   /** Получить список спринтов с фильтрацией */
-  async listSprints(filter?: BqlFilter | BqlFilter[]): Promise<SprintInfo[]> {
+  async listSprints(filter?: BqlFilter | BqlFilter[], slice?: [number, number]): Promise<SprintInfo[]> {
     const kwargs: Record<string, unknown> = {
       fields: ["**"],
       no_meta: true,
     };
     if (filter) {
       kwargs.filter = filter;
+    }
+    if (slice) {
+      kwargs.slice = slice;
     }
     const result = await this.call<EvaSprintRaw[]>("CmfList.list", kwargs);
     return result.map((raw) => mapSprint(raw)).filter((s) => s.code);

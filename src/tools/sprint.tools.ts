@@ -215,8 +215,12 @@ export async function handleSprintToolCall(
 
       const bqlFilters = buildSprintFilter(filterArgs);
 
+      const slice: [number, number] | undefined =
+        params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
+
       const sprints = await evaClient.listSprints(
-        bqlFilters.length > 0 ? bqlFilters : undefined
+        bqlFilters.length > 0 ? bqlFilters : undefined,
+        slice
       );
 
       const total = bqlFilters.length > 0
@@ -293,7 +297,7 @@ function buildSprintFilter(args: Record<string, unknown>): import("../types.js")
 
   // project ожидает UUID (резолвится в handler'е через getProject)
   if (args.project) filters.push(["parent_id", "==", args.project]);
-  if (args.status) filters.push(["status", "==", args.status]);
+  if (args.status) filters.push(["status.code", "==", args.status]);
   if (args.query) filters.push(["name", "ILIKE", `%${args.query}%`]);
 
   return filters;

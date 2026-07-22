@@ -8,7 +8,7 @@ export function buildTaskFilter(args: Record<string, unknown> | undefined): BqlF
   const filters: BqlFilter[] = [];
   if (!args) return filters;
 
-  if (args.status) filters.push(["status", "==", args.status]);
+  if (args.status) filters.push(["status.code", "==", args.status]);
   if (args.responsible) filters.push(["responsible.login", "==", args.responsible]);
   // parent_id ожидает UUID проекта (резолвится в handler'е через getProject)
   if (args.project) filters.push(["parent_id", "==", args.project]);

@@ -110,7 +110,7 @@ src/
 |----------|-----|-----------------|
 | `parent_id` (проект) | UUID | `["parent_id", "==", "CmfProject:uuid"]` — ⚠️ требует UUID, резолвить через `getProject(code)` |
 | `responsible` (исполнитель) | Relation | `["responsible.login", "==", "user@domain.ru"]` |
-| `status` | Relation | `["status", "==", "open"]` (код статуса) |
+| `status` | Relation | `["status.code", "==", "open"]` (код статуса) |
 | `epic` | Relation | `["epic", "IN", ["EPC-001"]]` |
 | `lists` (спринты) | M2M | ❌ `["lists.code", "IN", [...]]` не работает → клиентская фильтрация: `tasks.filter(t => t.lists.some(l => l.code === sprintCode))` |
 | `parent_task` | Relation | `["parent_task", "==", "DEV-000001"]` |

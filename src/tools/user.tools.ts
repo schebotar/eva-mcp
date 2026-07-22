@@ -59,7 +59,7 @@ function formatStatuses(statuses: StatusInfo[]): string {
 export const userToolDefs = [
   {
     name: "search_users",
-    description: "Поиск пользователей по имени или логину.",
+    description: "Поиск пользователей по имени, фамилии или логину.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -71,8 +71,8 @@ export const userToolDefs = [
   {
     name: "get_statuses",
     description:
-      "Получить справочник всех статусов задач с их ID и названиями. " +
-      "Полезно перед вызовом update_task, чтобы узнать ID нужного статуса.",
+      "Получить справочник всех статусов задач с их ID, названиями и кодами. " +
+      "Полезно перед вызовом update_task, search_tasks и count_tasks — фильтрация по статусу требует **код** статуса (колонка Код).",
     inputSchema: {
       type: "object" as const,
       properties: {},
