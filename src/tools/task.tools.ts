@@ -460,19 +460,22 @@ export async function handleTaskToolCall(
       const { code, text, result_text, ...rest } = UpdateTaskSchema.parse(args);
 
       const fields: Record<string, unknown> = {};
-      // Конвертируем Markdown → HTML для текстовых полей
-      if (text !== undefined && text !== null) fields.text = mdToHtml(text);
-      if (result_text !== undefined && result_text !== null) fields.result_text = mdToHtml(result_text);
+      // Конвертируем Markdown → HTML для текстовых полей (пропускаем пустые строки)
+      if (text) fields.text = mdToHtml(text);
+      if (result_text) fields.result_text = mdToHtml(result_text);
 
       for (const [key, value] of Object.entries(rest)) {
-        if (value !== undefined && value !== null) {
-          if (key === "project") {
-            // API ожидает поле parent для перемещения задачи в проект
-            fields["parent"] = value;
-          } else {
-            // Маппим приоритет из строки в число
-            fields[key] = key === "priority" ? mapPriority(value as string | number) : value;
-          }
+        // Пропускаем undefined, null и пустые строки (API некорректно обрабатывает "")
+        if (value === undefined || value === null || value === "") continue;
+        // Пропускаем пустые массивы
+        if (Array.isArray(value) && value.length === 0) continue;
+
+        if (key === "project") {
+          // API ожидает поле parent для перемещения задачи в проект
+          fields["parent"] = value;
+        } else {
+          // Маппим приоритет из строки в число
+          fields[key] = key === "priority" ? mapPriority(value as string | number) : value;
         }
       }
 
