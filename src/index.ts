@@ -15,7 +15,7 @@ import { userToolDefs, handleUserToolCall } from "./tools/user.tools.js";
 import { projectToolDefs, handleProjectToolCall } from "./tools/project.tools.js";
 import { linkedToolDefs, handleLinkedToolCall } from "./tools/linked.tools.js";
 // import { attachmentToolDefs, handleAttachmentToolCall } from "./tools/attachment.tools.js";
-// import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js";
+import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js";
 // import { followerToolDefs, handleFollowerToolCall } from "./tools/follower.tools.js";
 import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js";
 // import { backlogToolDefs, handleBacklogToolCall } from "./tools/backlog.tools.js";
@@ -45,7 +45,7 @@ const ALL_TOOL_DEFS = [
   ...userToolDefs,
   ...linkedToolDefs,
   // ...attachmentToolDefs,
-  // ...worklogToolDefs,
+  ...worklogToolDefs,
   // ...followerToolDefs,
   ...historyToolDefs,
   ...sprintToolDefs,
@@ -70,7 +70,7 @@ const ALL_HANDLERS: ToolHandler[] = [
   handleUserToolCall,
   handleLinkedToolCall,
   // handleAttachmentToolCall,
-  // handleWorklogToolCall,
+  handleWorklogToolCall,
   // handleFollowerToolCall,
   handleHistoryToolCall,
   handleSprintToolCall,

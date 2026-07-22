@@ -3,9 +3,7 @@ import type { EvaClient } from "../eva-client.js";
 import type { TaskInfo } from "../types.js";
 import { buildTaskFilter } from "../helpers/build-task-filter.js";
 import { formatComments } from "../helpers/comment-tree.js";
-import { mdToHtml } from "../helpers/markdown.js";
-
-// ── Приоритеты: маппинг имён в числа (ChoiceInt) ──────────────
+import { mdToHtml } from "../helpers/markdown.js";// ── Приоритеты: маппинг имён в числа (ChoiceInt) ──────────────
 
 const PRIORITY_MAP: Record<string, number> = {
   "none": 0, "нет": 0, "0": 0,
@@ -346,8 +344,8 @@ export const taskToolDefs = [
         priority: { type: "string", description: "Новый приоритет: `low`, `normal`, `high`, `critical` или 1-4" },
         deadline: { type: "string", description: "Крайний срок (ISO-дата, например 2026-07-15)" },
         name: { type: "string", description: "Новое название задачи" },
-        text: { type: "string", description: "Новое описание (Markdown, будет сконвертировано в HTML)" },
-        result_text: { type: "string", description: "Текст результата (Markdown, будет сконвертирован в HTML)" },
+        text: { type: "string", description: "Новое описание (Markdown, конвертируется в HTML)" },
+        result_text: { type: "string", description: "Текст результата (Markdown, конвертируется в HTML)" },
         project: { type: "string", description: "Перенести в другой проект. **Код проекта** — возьми из `search_projects`" },
         waiting_for: { type: "string", description: "Ожидает ответа от. **Логин** пользователя (email) — возьми из `search_users`" },
         executors: { type: "array", items: { type: "string" }, description: "Соисполнители. **Логины** пользователей (email) — возьми из `search_users`" },
@@ -460,7 +458,7 @@ export async function handleTaskToolCall(
       const { code, text, result_text, ...rest } = UpdateTaskSchema.parse(args);
 
       const fields: Record<string, unknown> = {};
-      // Конвертируем Markdown → HTML для текстовых полей (пропускаем пустые строки)
+      // Текстовые поля конвертируем Markdown → HTML (пропускаем пустые строки)
       if (text) fields.text = mdToHtml(text);
       if (result_text) fields.result_text = mdToHtml(result_text);
 

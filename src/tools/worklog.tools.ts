@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { EvaClient } from "../eva-client.js";
 import type { WorklogEntry } from "../types.js";
-import { mdToHtml } from "../helpers/markdown.js";
+
 
 // ── Zod-схема ──────────────────────────────────────────────────
 
@@ -59,9 +59,9 @@ export const worklogToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        code: { type: "string", description: "Код задачи" },
+        code: { type: "string", description: "Код задачи, например DEV-000003" },
         time_spent: { type: "number", description: "Затраченное время в минутах" },
-        text: { type: "string", description: "Описание работы (Markdown, будет сконвертировано в HTML)" },
+        text: { type: "string", description: "Описание работы (plain text)" },
         date: { type: "string", description: "Дата (ISO, по умолчанию — сегодня)" },
       },
       required: ["code", "time_spent"],
@@ -92,7 +92,7 @@ export async function handleWorklogToolCall(
 
   if (name === "log_work") {
     const { code, time_spent, text, date } = LogWorkSchema.parse(args);
-    await evaClient.logWork(code, time_spent, text ? mdToHtml(text) : text, date);
+    await evaClient.logWork(code, time_spent, text, date);
     return {
       content: [{
         type: "text",

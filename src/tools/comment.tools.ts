@@ -20,7 +20,7 @@ export const commentToolDefs = [
       type: "object" as const,
       properties: {
         code: { type: "string", description: "Код задачи, например DEV-000003" },
-        text: { type: "string", description: "Текст комментария (Markdown, будет сконвертирован в HTML)" },
+        text: { type: "string", description: "Текст комментария (Markdown, конвертируется в HTML)" },
       },
       required: ["code", "text"],
     },
