@@ -7,6 +7,7 @@ import { mdToHtml } from "../helpers/markdown.js";
 const AddCommentSchema = z.object({
   code: z.string().min(1, "Код задачи обязателен"),
   text: z.string().min(1, "Текст комментария обязателен"),
+  parent: z.string().optional(),
 });
 
 // ── Определение инструмента ────────────────────────────────────
@@ -15,12 +16,14 @@ export const commentToolDefs = [
   {
     name: "add_comment",
     description:
-      "Добавить комментарий к задаче. Принимает код задачи и текст комментария (Markdown, конвертируется в HTML).",
+      "Добавить комментарий к задаче. Принимает код задачи и текст комментария (Markdown, конвертируется в HTML). " +
+      "Опционально можно указать parent — ID родительского комментария для создания вложенного ответа.",
     inputSchema: {
       type: "object" as const,
       properties: {
         code: { type: "string", description: "Код задачи, например DEV-000003" },
         text: { type: "string", description: "Текст комментария (Markdown, конвертируется в HTML)" },
+        parent: { type: "string", description: "ID родительского комментария для ответа (опционально)" },
       },
       required: ["code", "text"],
     },
@@ -36,8 +39,8 @@ export async function handleCommentToolCall(
   evaClient: EvaClient
 ): Promise<{ content: { type: "text"; text: string }[]; isError?: boolean } | null> {
   if (name === "add_comment") {
-    const { code, text } = AddCommentSchema.parse(args);
-    const comment = await evaClient.addComment(code, mdToHtml(text));
+    const { code, text, parent } = AddCommentSchema.parse(args);
+    const comment = await evaClient.addComment(code, mdToHtml(text), parent);
     return {
       content: [{
         type: "text",

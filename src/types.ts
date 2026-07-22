@@ -158,7 +158,7 @@ export interface EvaCommentRaw {
   cmf_author?: { login?: string; name?: string } | null;
   text?: string;
   cmf_created_at?: string;
-  tree_parent?: { id?: string } | null;
+  tree_parent?: string | { id?: string } | null;
 }
 
 // ── BQL (фильтры) ──────────────────────────────────────────────

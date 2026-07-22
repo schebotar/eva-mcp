@@ -104,13 +104,17 @@ export function mapHistoryEntry(raw: StatusHistoryEntryRaw): StatusHistoryEntry 
 }
 
 export function mapComment(raw: EvaCommentRaw): CommentInfo {
+  const parentCode =
+    typeof raw.tree_parent === "string"
+      ? raw.tree_parent
+      : raw.tree_parent?.id ?? null;
   return {
     id: raw.id ?? null,
     author: raw.cmf_author?.login ?? null,
     authorName: raw.cmf_author?.name ?? null,
     text: htmlToMd(raw.text ?? ""),
     createdAt: raw.cmf_created_at ?? null,
-    parentCode: raw.tree_parent?.id ?? null,
+    parentCode,
   };
 }
 

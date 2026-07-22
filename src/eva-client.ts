@@ -100,7 +100,7 @@ export class EvaClient {
         "comments.cmf_created_at",
         "comments.cmf_author.login",
         "comments.cmf_author.name",
-        "comments.tree_parent.id",
+        "comments.tree_parent",
       ],
     });
 
@@ -120,7 +120,7 @@ export class EvaClient {
         "comments.cmf_created_at",
         "comments.cmf_author.login",
         "comments.cmf_author.name",
-        "comments.tree_parent.id",
+        "comments.tree_parent",
         "attachments.**",
       ],
     });
@@ -224,6 +224,22 @@ export class EvaClient {
         "CmfFolder.list",
         {
           filter: [["parent_id", "==", projectId], ["code", "ILIKE", "%SPRINT%"]],
+          fields: ["id"],
+        }
+      );
+      return folders.length > 0 ? folders[0].id : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /** Найти ID папки Epics в проекте */
+  async findEpicsFolderId(projectId: string): Promise<string | null> {
+    try {
+      const folders = await this.call<Array<{ id: string }>>(
+        "CmfFolder.list",
+        {
+          filter: [["parent_id", "==", projectId], ["code", "ILIKE", "%EPIC%"]],
           fields: ["id"],
         }
       );
@@ -640,12 +656,22 @@ export class EvaClient {
   }
 
   /** Добавить комментарий к задаче */
-  async addComment(taskCode: string, text: string): Promise<CommentInfo> {
-    const raw = await this.call<EvaCommentRaw>("CmfComment.create", {
+  async addComment(taskCode: string, text: string, parentCommentId?: string): Promise<CommentInfo> {
+    const kwargs: Record<string, unknown> = {
       parent: taskCode,
       text: text,
-    });
-    return mapComment(raw);
+    };
+    if (parentCommentId) kwargs.tree_parent = parentCommentId;
+    const id = await this.call<string>("CmfComment.create", kwargs);
+    // CmfComment.create возвращает ID — полные данные будут при get_task
+    return {
+      id,
+      author: null,
+      authorName: null,
+      text,
+      createdAt: null,
+      parentCode: parentCommentId ?? null,
+    };
   }
 
   /** Списать время по задаче (timetracker) */

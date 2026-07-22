@@ -553,6 +553,13 @@ export async function handleTaskToolCall(
           if (key === "priority" && typeof value === "string") {
             const num = mapPriority(value);
             if (num !== undefined) fields[key] = num;
+          } else if (key === "type") {
+            // type → logic_type
+            fields["logic_type"] = value;
+            // Если указан тип — ищем папку для tree_parent_id
+            const projectInfo = await evaClient.getProject(project);
+            const treeParentId = await evaClient.findEpicsFolderId(projectInfo.id);
+            if (treeParentId) fields["tree_parent_id"] = treeParentId;
           } else {
             fields[key] = value;
           }

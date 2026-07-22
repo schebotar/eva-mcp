@@ -46,9 +46,10 @@ export function formatCommentTree(
     const date = c.createdAt ?? "—";
 
     if (depth === 0) {
-      lines.push(`### ${counter.value}. ${author} — ${date}`, "", c.text, "");
+      lines.push(`### ${counter.value}. ${author} — ${date}`, "", `\`${c.id ?? "—"}\``, "", c.text, "");
     } else {
       lines.push(`${indent}${prefix}**${counter.value}. ${author} — ${date}**`, "");
+      lines.push(`${indent}   \`${c.id ?? "—"}\``, "");
       lines.push(`${indent}   ${c.text}`, "");
     }
 
