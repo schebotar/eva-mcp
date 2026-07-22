@@ -10,7 +10,8 @@ export function buildTaskFilter(args: Record<string, unknown> | undefined): BqlF
 
   if (args.status) filters.push(["status", "==", args.status]);
   if (args.responsible) filters.push(["responsible.login", "==", args.responsible]);
-  if (args.project) filters.push(["parent.code", "==", args.project]);
+  // parent_id ожидает UUID проекта (резолвится в handler'е через getProject)
+  if (args.project) filters.push(["parent_id", "==", args.project]);
   if (args.priority) filters.push(["priority", "==", args.priority]);
   if (args.type) filters.push(["logic_type", "==", args.type]);
   if (args.query) filters.push(["name", "ILIKE", `%${args.query}%`]);
@@ -27,9 +28,8 @@ export function buildTaskFilter(args: Record<string, unknown> | undefined): BqlF
       ["affected_tasks", "IN", [code]],
     ]);
   }
-  if (args.sprint) {
-    filters.push(["lists.code", "IN", [args.sprint]]);
-  }
+  // lists.code не работает через API — спринт фильтруется клиентски в handler'е
+  // if (args.sprint) filters.push(["lists.code", "IN", [args.sprint]]);
 
   return filters;
 }

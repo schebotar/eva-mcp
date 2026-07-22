@@ -147,7 +147,7 @@ export class EvaClient {
     }
 
     const result = await this.call<EvaTaskRaw[]>("CmfTask.list", kwargs);
-    return result.map((raw) => mapTask(raw));
+    return result.map((raw) => mapTask(raw)).filter((t) => t.code);
   }
 
   /** Получить количество задач по фильтру */
@@ -237,7 +237,7 @@ export class EvaClient {
       kwargs.filter = filter;
     }
     const result = await this.call<EvaSprintRaw[]>("CmfList.list", kwargs);
-    return result.map((raw) => mapSprint(raw));
+    return result.map((raw) => mapSprint(raw)).filter((s) => s.code);
   }
 
   /** Получить количество спринтов по фильтру */

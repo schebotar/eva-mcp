@@ -86,7 +86,7 @@ src/
 | **Проект** | `code` | строчные буквы/дефисы | `mcp-test` | `search_projects`, URL `/project/Project/{code}` |
 | **Спринт** | `code` | `SPR-НОМЕР` | `SPR-000001` | `search_sprints` |
 | **Пользователь** | `login` | email | `user@domain.ru` | `search_users` (колонка **Логин**) |
-| **Статус** | `code` | строчные буквы | `open`, `in_progress` | `get_statuses` (колонка **Код**) |
+| **Статус** | `code` | код статуса | взять из колонки **Код** в `get_statuses` | `get_statuses` |
 | **Статус** | `id` (UUID) | `CmfStatus:uuid` | — | `get_statuses` (колонка **ID**) |
 | **Комментарий** | `id` (UUID) | — | — | Только через `get_task` |
 | **Вложение** | `id` (UUID) | — | — | Только через `get_task` / `get_attachments` |
@@ -104,15 +104,15 @@ src/
 
 ### Поля-идентификаторы в BQL-фильтрах
 
-При построении BQL-фильтров учитывай, что Relation-поля — это объекты, не строки:
+При построении BQL-фильтров учитывай, что не все поля поддерживают вложенную фильтрацию:
 
 | Поле API | Тип | Как фильтровать |
 |----------|-----|-----------------|
-| `parent` (проект) | Relation | `["parent.code", "==", "mcp-test"]` |
+| `parent_id` (проект) | UUID | `["parent_id", "==", "CmfProject:uuid"]` — ⚠️ требует UUID, резолвить через `getProject(code)` |
 | `responsible` (исполнитель) | Relation | `["responsible.login", "==", "user@domain.ru"]` |
 | `status` | Relation | `["status", "==", "open"]` (код статуса) |
 | `epic` | Relation | `["epic", "IN", ["EPC-001"]]` |
-| `lists` (спринты) | M2M | `["lists.code", "IN", ["SPR-001"]]` |
+| `lists` (спринты) | M2M | ❌ `["lists.code", "IN", [...]]` не работает → клиентская фильтрация: `tasks.filter(t => t.lists.some(l => l.code === sprintCode))` |
 | `parent_task` | Relation | `["parent_task", "==", "DEV-000001"]` |
 | `spectators` | GenericM2M | `["spectators", "IN", ["user@test.ru"]]` |
 | `executors` | GenericM2M | `["executors", "IN", ["user@test.ru"]]` |

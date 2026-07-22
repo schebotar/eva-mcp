@@ -200,14 +200,22 @@ export async function handleSprintToolCall(
 
     case "search_sprints": {
       const params = SearchSprintsSchema.parse(args);
-      const filters: Record<string, unknown> = {};
-      if (params.project) filters.project = params.project;
-      if (params.status) filters.status = params.status;
-      if (params.query) filters.query = params.query;
 
-      const bqlFilters = buildSprintFilter(filters);
+      // Резолвим код проекта → UUID (parent_id требует UUID)
+      let projectId: string | undefined;
+      if (params.project) {
+        const project = await evaClient.getProject(params.project);
+        projectId = project.id;
+      }
 
-      const tasks = await evaClient.listSprints(
+      const filterArgs: Record<string, unknown> = {};
+      if (projectId) filterArgs.project = projectId;
+      if (params.status) filterArgs.status = params.status;
+      if (params.query) filterArgs.query = params.query;
+
+      const bqlFilters = buildSprintFilter(filterArgs);
+
+      const sprints = await evaClient.listSprints(
         bqlFilters.length > 0 ? bqlFilters : undefined
       );
 
@@ -215,7 +223,7 @@ export async function handleSprintToolCall(
         ? await evaClient.countSprints(bqlFilters)
         : undefined;
 
-      return { content: [{ type: "text", text: formatSprintList(tasks, total) }] };
+      return { content: [{ type: "text", text: formatSprintList(sprints, total) }] };
     }
 
     // case "create_sprint": {
@@ -283,8 +291,8 @@ function buildSprintFilter(args: Record<string, unknown>): import("../types.js")
   const filters: import("../types.js").BqlFilter[] = [];
   if (!args) return filters;
 
-  // TODO: parent фильтр требует UUID
-  // if (args.project) filters.push(["parent_id", "==", args.project]);
+  // project ожидает UUID (резолвится в handler'е через getProject)
+  if (args.project) filters.push(["parent_id", "==", args.project]);
   if (args.status) filters.push(["status", "==", args.status]);
   if (args.query) filters.push(["name", "ILIKE", `%${args.query}%`]);
 

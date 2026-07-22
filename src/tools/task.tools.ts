@@ -57,6 +57,7 @@ export const CountTasksSchema = z.object({
   date_to: z.string().optional(),
   created_from: z.string().optional(),
   created_to: z.string().optional(),
+  // sprint не поддерживается — клиентская фильтрация невозможна для count
 });
 
 export const UpdateTaskSchema = z.object({
@@ -292,11 +293,11 @@ export const taskToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        status: { type: "string", description: "Фильтр по статусу. **Код** статуса (например `open`, `in_progress`) — возьми из `get_statuses`" },
+        status: { type: "string", description: "Фильтр по статусу. **Код** статуса — возьми из `get_statuses`" },
         responsible: { type: "string", description: "Фильтр по исполнителю. **Логин** пользователя (email) — возьми из `search_users`" },
         project: { type: "string", description: "Фильтр по проекту. **Код проекта** (например `mcp-test`) — возьми из `search_projects`" },
         priority: { type: "string", description: "Фильтр по приоритету: `low`, `normal`, `high`, `critical` или 1-4" },
-        type: { type: "string", description: "Фильтр по типу задачи (ID типа)" },
+        type: { type: "string", description: "Фильтр по типу задачи (ID логического типа)" },
         query: { type: "string", description: "Текстовый поиск по **названию** задачи (ищет подстроку в name)" },
         linked_to: { type: "string", description: "Найти задачи, связанные с указанной. **Код задачи** (например `DEV-000003`)" },
         date_from: { type: "string", description: "Дата изменения ОТ (ISO, например 2026-07-20). Фильтр по полю `cmf_modified_at`" },
@@ -319,8 +320,8 @@ export const taskToolDefs = [
         status: { type: "string", description: "Фильтр по статусу. **Код** статуса — возьми из `get_statuses`" },
         responsible: { type: "string", description: "Фильтр по исполнителю. **Логин** (email) — возьми из `search_users`" },
         project: { type: "string", description: "Фильтр по проекту. **Код проекта** — возьми из `search_projects`" },
-        priority: { type: "string", description: "Фильтр по приоритету: `low`, `normal`, `high`, `critical`" },
-        type: { type: "string", description: "Фильтр по типу задачи (ID типа)" },
+        priority: { type: "string", description: "Фильтр по приоритету: `low`, `normal`, `high`, `critical` или 1-4" },
+        type: { type: "string", description: "Фильтр по типу задачи (ID логического типа)" },
         query: { type: "string", description: "Текстовый поиск по **названию** задачи" },
         linked_to: { type: "string", description: "Найти задачи, связанные с указанной. **Код задачи**" },
         date_from: { type: "string", description: "Дата изменения ОТ (ISO). Фильтр по `cmf_modified_at`" },
@@ -341,7 +342,7 @@ export const taskToolDefs = [
       type: "object" as const,
       properties: {
         code: { type: "string", description: "Код задачи (обязательный)" },
-        status: { type: "string", description: "Новый статус. **Код** статуса — возьми из `get_statuses` (например `open`, `in_progress`)" },
+        status: { type: "string", description: "Новый статус. **Код** статуса — возьми из `get_statuses`" },
         responsible: { type: "string", description: "Новый исполнитель. **Логин** пользователя (email) — возьми из `search_users`" },
         priority: { type: "string", description: "Новый приоритет: `low`, `normal`, `high`, `critical` или 1-4" },
         deadline: { type: "string", description: "Крайний срок (ISO-дата, например 2026-07-15)" },
@@ -349,9 +350,9 @@ export const taskToolDefs = [
         text: { type: "string", description: "Новое описание (Markdown, будет сконвертировано в HTML)" },
         result_text: { type: "string", description: "Текст результата (Markdown, будет сконвертирован в HTML)" },
         project: { type: "string", description: "Перенести в другой проект. **Код проекта** — возьми из `search_projects`" },
-        waiting_for: { type: "string", description: "Ожидает ответа от. **Логин** пользователя (email)" },
-        executors: { type: "array", items: { type: "string" }, description: "Соисполнители. **Логины** пользователей (email)" },
-        spectators: { type: "array", items: { type: "string" }, description: "Наблюдатели. **Логины** пользователей (email)" },
+        waiting_for: { type: "string", description: "Ожидает ответа от. **Логин** пользователя (email) — возьми из `search_users`" },
+        executors: { type: "array", items: { type: "string" }, description: "Соисполнители. **Логины** пользователей (email) — возьми из `search_users`" },
+        spectators: { type: "array", items: { type: "string" }, description: "Наблюдатели. **Логины** пользователей (email) — возьми из `search_users`" },
         tags: { type: "array", items: { type: "string" }, description: "Теги (названия или ID тегов)" },
         lists: { type: "array", items: { type: "string" }, description: "Спринты. **Коды спринтов** (например `SPR-000001`) — возьми из `search_sprints`" },
         is_milestone: { type: "boolean", description: "Отметить как веху (Milestone)" },
@@ -413,7 +414,18 @@ export async function handleTaskToolCall(
 
     case "search_tasks": {
       const params = SearchTasksSchema.parse(args);
-      const filters = buildTaskFilter(params as Record<string, unknown>);
+
+      // Резолвим код проекта → UUID (parent_id требует UUID)
+      let projectId: string | undefined;
+      if (params.project) {
+        const project = await evaClient.getProject(params.project);
+        projectId = project.id;
+      }
+
+      const filterArgs: Record<string, unknown> = { ...params as Record<string, unknown> };
+      if (projectId) filterArgs.project = projectId;
+
+      const filters = buildTaskFilter(filterArgs);
       const slice: [number, number] | undefined =
         params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
 
@@ -431,7 +443,18 @@ export async function handleTaskToolCall(
 
     case "count_tasks": {
       const params = CountTasksSchema.parse(args);
-      const filters = buildTaskFilter(params as Record<string, unknown>);
+
+      // Резолвим код проекта → UUID
+      let projectId: string | undefined;
+      if (params.project) {
+        const project = await evaClient.getProject(params.project);
+        projectId = project.id;
+      }
+
+      const filterArgs: Record<string, unknown> = { ...params as Record<string, unknown> };
+      if (projectId) filterArgs.project = projectId;
+
+      const filters = buildTaskFilter(filterArgs);
       const count = await evaClient.countTasks(
         filters.length > 0 ? filters : undefined
       );
