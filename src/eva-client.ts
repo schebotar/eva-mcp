@@ -7,10 +7,11 @@ import type {
   LinkedTasksInfo, ReferencingTasksInfo,
   EvaRelationOptionRaw, RelationInfo,
   SprintInfo, EvaSprintRaw, SprintUpdateFields,
+  RequirementInfo, EvaReqRaw, RequirementListParams,
 } from "./types.js";
 import {
   mapTask, mapComment, mapAttachment, mapWorklog, mapHistoryEntry,
-  mapProject, mapPerson, mapStatus, mapSprint,
+  mapProject, mapPerson, mapStatus, mapSprint, mapRequirement,
 } from "./mappers.js";
 /** HTTP-клиент для EvaProject JSON-RPC API */
 export class EvaClient {
@@ -672,6 +673,33 @@ export class EvaClient {
       createdAt: null,
       parentCode: parentCommentId ?? null,
     };
+  }
+
+  // ── Требования (CmfReq) ──────────────────────────────────
+
+  /** Получить требование по коду (например, MSR-BR-0085) */
+  async getRequirement(code: string): Promise<RequirementInfo> {
+    const raw = await this.call<EvaReqRaw>("CmfReq.get", {
+      filter: ["code", "==", code],
+      fields: ["***", "priority_name"],
+    });
+    return mapRequirement(raw);
+  }
+
+  /** Получить список требований с фильтрацией */
+  async listRequirements(params: RequirementListParams = {}): Promise<RequirementInfo[]> {
+    const kwargs: Record<string, unknown> = {
+      fields: params.fields ?? ["**", "priority_name"],
+      no_meta: true,
+    };
+    if (params.filter) {
+      kwargs.filter = params.filter;
+    }
+    if (params.slice) {
+      kwargs.slice = params.slice;
+    }
+    const result = await this.call<EvaReqRaw[]>("CmfReq.list", kwargs);
+    return result.map((raw) => mapRequirement(raw)).filter((r) => r.code);
   }
 
   /** Списать время по задаче (timetracker) */

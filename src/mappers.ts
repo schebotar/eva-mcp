@@ -1,8 +1,8 @@
 import type {
   TaskInfo, CommentInfo, AttachmentInfo, WorklogEntry, StatusHistoryEntry,
-  ProjectInfo, PersonInfo, StatusInfo, SprintInfo,
+  ProjectInfo, PersonInfo, StatusInfo, SprintInfo, RequirementInfo,
   EvaTaskRaw, EvaAttachmentRaw, EvaCommentRaw, WorklogEntryRaw, StatusHistoryEntryRaw,
-  EvaProjectRaw, EvaPersonRaw, EvaStatusRaw, EvaSprintRaw,
+  EvaProjectRaw, EvaPersonRaw, EvaStatusRaw, EvaSprintRaw, EvaReqRaw,
 } from "./types.js";
 import { htmlToMd } from "./helpers/markdown.js";
 
@@ -153,6 +153,56 @@ export function mapStatus(raw: EvaStatusRaw): StatusInfo {
     name: raw.name ?? "",
     code: raw.code ?? null,
     type: raw.status_type ?? null,
+  };
+}
+
+/** Маппинг сырых данных требования → RequirementInfo */
+export function mapRequirement(raw: EvaReqRaw): RequirementInfo {
+  const statusObj =
+    typeof raw.status === "object" && raw.status !== null ? raw.status : null;
+  return {
+    id: raw.id,
+    code: raw.code,
+    name: raw.name,
+    text: htmlToMd(raw.text ?? ""),
+    textDraft: raw.text_draft ? htmlToMd(raw.text_draft) : null,
+    status: statusObj?.id ?? (typeof raw.status === "string" ? raw.status : null),
+    statusName: raw.status_name ?? statusObj?.name ?? null,
+    statusCode: statusObj?.code ?? null,
+    author: raw.cmf_author?.login ?? null,
+    authorName: raw.cmf_author?.name ?? null,
+    responsible: raw.responsible?.login ?? null,
+    responsibleName: raw.responsible?.name ?? null,
+    projectCode: raw.parent?.code ?? null,
+    projectName: raw.parent?.name ?? null,
+    createdAt: raw.cmf_created_at ?? null,
+    updatedAt: raw.cmf_modified_at ?? null,
+    priority: raw.priority ?? null,
+    priorityName: raw.priority_name ?? (raw.priority ? PRIORITY_NUM_TO_NAME[Number(raw.priority)] ?? null : null),
+    typeName: raw.logic_type?.name ?? null,
+    deadline: raw.deadline ?? null,
+    resultText: raw.result_text ? htmlToMd(raw.result_text) : null,
+    executors: (raw.executors ?? []).map((e) => e.login ?? "").filter(Boolean),
+    executorNames: (raw.executors ?? []).map((e) => e.name ?? "").filter(Boolean),
+    spectators: (raw.spectators ?? []).map((s) => s.login ?? "").filter(Boolean),
+    spectatorNames: (raw.spectators ?? []).map((s) => s.name ?? "").filter(Boolean),
+    tags: (raw.tags ?? []).map((t) => t.name ?? "").filter(Boolean),
+    lists: (raw.lists ?? []).map((l) => ({ id: l.id ?? "", code: l.code ?? "", name: l.name ?? "" })),
+    isMilestone: raw.is_milestone ?? false,
+    estimateWork: raw.estimate_work ?? null,
+    mark: raw.mark ?? null,
+    waitingFor: raw.waiting_for?.login ?? null,
+    waitingForName: raw.waiting_for?.name ?? null,
+    workflowCode: raw.workflow?.code ?? null,
+    workflowName: raw.workflow?.name ?? null,
+    components: (raw.components ?? []).map((c) => c.name ?? "").filter(Boolean),
+    attachments: (raw.attachments ?? []).map((a) => mapAttachment(a)),
+    statusModifiedAt: raw.status_modified_at ?? null,
+    statusClosedAt: raw.status_closed_at ?? null,
+    epicCode: raw.epic?.code ?? null,
+    epicName: raw.epic?.name ?? null,
+    parentTaskCode: raw.parent_task?.code ?? null,
+    parentTaskName: raw.parent_task?.name ?? null,
   };
 }
 

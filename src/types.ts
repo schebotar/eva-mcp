@@ -33,6 +33,98 @@ export interface AttachmentInfo {
   authorName: string | null;
 }
 
+// ── Требования (CmfReq) ───────────────────────────────────────
+
+/** Сырые данные требования из API EvaProject (CmfReq) */
+export interface EvaReqRaw {
+  id: string;
+  code: string;
+  name: string;
+  text?: string;
+  text_draft?: string;
+  status?: { id?: string; name?: string; code?: string } | string | null;
+  status_name?: string;
+  cmf_author?: { login?: string; name?: string } | null;
+  responsible?: { login?: string; name?: string } | null;
+  parent?: { code?: string; name?: string } | null;
+  cmf_created_at?: string;
+  cmf_modified_at?: string;
+  priority?: string;
+  priority_name?: string;
+  logic_type?: { name?: string; code?: string } | null;
+  deadline?: string;
+  result_text?: string;
+  executors?: { login?: string; name?: string }[];
+  spectators?: { login?: string; name?: string }[];
+  tags?: { name?: string }[];
+  lists?: { id?: string; code?: string; name?: string }[];
+  estimate_work?: number;
+  mark?: string;
+  waiting_for?: { login?: string; name?: string } | null;
+  workflow?: { code?: string; name?: string } | null;
+  components?: { name?: string }[];
+  attachments?: EvaAttachmentRaw[];
+  status_modified_at?: string;
+  status_closed_at?: string;
+  epic?: { code?: string; name?: string } | null;
+  parent_task?: { code?: string; name?: string } | null;
+  comments?: EvaCommentRaw[];
+  is_milestone?: boolean;
+}
+
+/** Нормализованные данные требования */
+export interface RequirementInfo {
+  id: string;
+  code: string;
+  name: string;
+  text: string;
+  textDraft: string | null;
+  status: string | null;
+  statusName: string | null;
+  statusCode: string | null;
+  author: string | null;
+  authorName: string | null;
+  responsible: string | null;
+  responsibleName: string | null;
+  projectCode: string | null;
+  projectName: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  priority: string | null;
+  priorityName: string | null;
+  typeName: string | null;
+  deadline: string | null;
+  resultText: string | null;
+  executors: string[];
+  executorNames: string[];
+  spectators: string[];
+  spectatorNames: string[];
+  tags: string[];
+  lists: { id: string; code: string; name: string }[];
+  isMilestone: boolean;
+  estimateWork: number | null;
+  mark: string | null;
+  waitingFor: string | null;
+  waitingForName: string | null;
+  workflowCode: string | null;
+  workflowName: string | null;
+  components: string[];
+  attachments: AttachmentInfo[];
+  statusModifiedAt: string | null;
+  statusClosedAt: string | null;
+  epicCode: string | null;
+  epicName: string | null;
+  parentTaskCode: string | null;
+  parentTaskName: string | null;
+}
+
+/** Параметры для listRequirements */
+export interface RequirementListParams {
+  filter?: BqlFilter | BqlFilter[];
+  fields?: string[];
+  slice?: [number, number];
+}
+
 /** Данные задачи из EvaProject */
 export interface TaskInfo {
   id: string;
