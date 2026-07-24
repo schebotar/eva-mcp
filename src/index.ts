@@ -19,7 +19,6 @@ import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js
 // import { followerToolDefs, handleFollowerToolCall } from "./tools/follower.tools.js";
 import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js";
 // import { backlogToolDefs, handleBacklogToolCall } from "./tools/backlog.tools.js";
-// import { boardToolDefs, handleBoardToolCall } from "./tools/board.tools.js";
 import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
 // import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
 // import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
@@ -50,7 +49,6 @@ const ALL_TOOL_DEFS = [
   ...historyToolDefs,
   ...sprintToolDefs,
   // ...backlogToolDefs,
-  // ...boardToolDefs,
   ...commentToolDefs,
   // ...metricsToolDefs,
   // ...epicToolDefs,
@@ -75,7 +73,6 @@ const ALL_HANDLERS: ToolHandler[] = [
   handleHistoryToolCall,
   handleSprintToolCall,
   // handleBacklogToolCall,
-  // handleBoardToolCall,
   handleCommentToolCall,
   // handleMetricsToolCall,
   // handleEpicToolCall,
