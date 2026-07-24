@@ -39,6 +39,7 @@ export const SearchTasksSchema = z.object({
   date_to: z.string().optional(),
   created_from: z.string().optional(),
   created_to: z.string().optional(),
+  no_sprint: z.boolean().optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().min(0).optional(),
 });
@@ -56,6 +57,7 @@ export const CountTasksSchema = z.object({
   date_to: z.string().optional(),
   created_from: z.string().optional(),
   created_to: z.string().optional(),
+  no_sprint: z.boolean().optional(),
 });
 
 export const UpdateTaskSchema = z.object({
@@ -306,6 +308,7 @@ export const taskToolDefs = [
         date_to: { type: "string", description: "Дата изменения ДО (ISO). Фильтр по полю `cmf_modified_at`" },
         created_from: { type: "string", description: "Дата создания ОТ (ISO). Фильтр по полю `cmf_created_at`" },
         created_to: { type: "string", description: "Дата создания ДО (ISO). Фильтр по полю `cmf_created_at`" },
+        no_sprint: { type: "boolean", description: "Только задачи без спринта (бэклог). Клиентский фильтр — работает поверх результатов API." },
         limit: { type: "number", description: "Максимальное количество результатов" },
         offset: { type: "number", description: "Смещение для пагинации" },
       },
@@ -331,6 +334,7 @@ export const taskToolDefs = [
         date_to: { type: "string", description: "Дата изменения ДО (ISO). Фильтр по `cmf_modified_at`" },
         created_from: { type: "string", description: "Дата создания ОТ (ISO). Фильтр по `cmf_created_at`" },
         created_to: { type: "string", description: "Дата создания ДО (ISO). Фильтр по `cmf_created_at`" },
+        no_sprint: { type: "boolean", description: "Только задачи без спринта (бэклог). Клиентский фильтр." },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -421,8 +425,8 @@ export async function handleTaskToolCall(
         projectId = project.id;
       }
 
-      // Извлекаем linked_to — обрабатывается отдельно, не через BQL
-      const { linked_to, ...restParams } = params as Record<string, unknown>;
+      // Извлекаем no_sprint и linked_to — обрабатываются отдельно, не через BQL
+      const { linked_to, no_sprint, ...restParams } = params as Record<string, unknown>;
       const filterArgs: Record<string, unknown> = { ...restParams };
       if (projectId) filterArgs.project = projectId;
       // Конвертируем строковый приоритет в число (API ожидает ChoiceInt)
@@ -452,12 +456,17 @@ export async function handleTaskToolCall(
       const slice: [number, number] | undefined =
         params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
 
-      const tasks = await evaClient.listTasks({
+      let tasks = await evaClient.listTasks({
         filter: filters.length > 0 ? filters : undefined,
         slice,
       });
 
-      const total = filters.length > 0
+      // Клиентская фильтрация: только задачи без спринта (бэклог)
+      if (no_sprint === true) {
+        tasks = tasks.filter((t) => t.lists.length === 0);
+      }
+
+      const total = filters.length > 0 && !no_sprint
         ? await evaClient.countTasks(filters)
         : undefined;
 
@@ -474,8 +483,8 @@ export async function handleTaskToolCall(
         projectId = project.id;
       }
 
-      // Извлекаем linked_to — обрабатывается отдельно, не через BQL
-      const { linked_to, ...restParams } = params as Record<string, unknown>;
+      // Извлекаем no_sprint и linked_to — обрабатываются отдельно, не через BQL
+      const { linked_to, no_sprint, ...restParams } = params as Record<string, unknown>;
       const filterArgs: Record<string, unknown> = { ...restParams };
       if (projectId) filterArgs.project = projectId;
       // Конвертируем строковый приоритет в число (API ожидает ChoiceInt)
@@ -499,6 +508,15 @@ export async function handleTaskToolCall(
         } else {
           return { content: [{ type: "text", text: "Найдено задач: **0**" }] };
         }
+      }
+
+      // no_sprint — клиентский фильтр: получаем задачи и считаем отфильтрованные
+      if (no_sprint === true) {
+        const tasks = await evaClient.listTasks({
+          filter: filters.length > 0 ? filters : undefined,
+        });
+        const count = tasks.filter((t) => t.lists.length === 0).length;
+        return { content: [{ type: "text", text: `Найдено задач: **${count}**` }] };
       }
 
       const count = await evaClient.countTasks(

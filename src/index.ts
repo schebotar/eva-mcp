@@ -18,7 +18,6 @@ import { linkedToolDefs, handleLinkedToolCall } from "./tools/linked.tools.js";
 import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js";
 // import { followerToolDefs, handleFollowerToolCall } from "./tools/follower.tools.js";
 import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js";
-// import { backlogToolDefs, handleBacklogToolCall } from "./tools/backlog.tools.js";
 import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
 // import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
 // import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
@@ -48,7 +47,6 @@ const ALL_TOOL_DEFS = [
   // ...followerToolDefs,
   ...historyToolDefs,
   ...sprintToolDefs,
-  // ...backlogToolDefs,
   ...commentToolDefs,
   // ...metricsToolDefs,
   // ...epicToolDefs,
@@ -72,7 +70,6 @@ const ALL_HANDLERS: ToolHandler[] = [
   // handleFollowerToolCall,
   handleHistoryToolCall,
   handleSprintToolCall,
-  // handleBacklogToolCall,
   handleCommentToolCall,
   // handleMetricsToolCall,
   // handleEpicToolCall,
