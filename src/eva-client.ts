@@ -8,6 +8,8 @@ import type {
   EvaRelationOptionRaw, RelationInfo,
   SprintInfo, EvaSprintRaw, SprintUpdateFields,
   RequirementInfo, EvaReqRaw, RequirementListParams,
+  LinkTasksParams, UnlinkTasksParams,
+  RelationTypeInfo,
 } from "./types.js";
 import {
   mapTask, mapComment, mapAttachment, mapWorklog, mapHistoryEntry,
@@ -194,6 +196,311 @@ export class EvaClient {
 
     // После обновления получаем свежую версию задачи
     return this.getTask(code);
+  }
+
+  /** Резолвить коды задач в ID (параллельно, для валидации) */
+  async resolveTaskIds(codes: string[]): Promise<Record<string, string>> {
+    if (codes.length === 0) return {};
+
+    const results = await Promise.all(
+      codes.map(async (code) => {
+        try {
+          const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
+            filter: ["code", "==", code],
+            fields: ["id", "code"],
+          });
+          return { code, id: raw.id };
+        } catch {
+          throw new Error(`Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
+        }
+      })
+    );
+
+    const map: Record<string, string> = {};
+    for (const { code, id } of results) {
+      map[code] = id;
+    }
+    return map;
+  }
+
+  /** Получить текущие коды связей задачи (depended/affected/local_links/parent_task) */
+  private async getCurrentLinkCodes(code: string): Promise<{
+    depended: string[];
+    affected: string[];
+    localLinks: string[];
+    parentTask: string | null;
+  }> {
+    const raw = await this.call<EvaTaskRaw>("CmfTask.get", {
+      filter: ["code", "==", code],
+      fields: [
+        "depended_tasks.code",
+        "affected_tasks.code",
+        "local_links.code",
+        "parent_task.code",
+      ],
+    });
+
+    return {
+      depended: (raw.depended_tasks ?? []).map((t) => t.code).filter(Boolean),
+      affected: (raw.affected_tasks ?? []).map((t) => t.code).filter(Boolean),
+      localLinks: ((raw as unknown as Record<string, unknown>).local_links as Array<{ code?: string }> ?? [])
+        .map((t) => t.code).filter((c): c is string => !!c),
+      parentTask: raw.parent_task?.code ?? null,
+    };
+  }
+
+  /** Установить связи между задачами (merge — дополняет существующие) */
+  async linkTasks(code: string, params: LinkTasksParams): Promise<LinkedTasksInfo> {
+    // Валидация: запрет самосвязи
+    const allTargetCodes = [
+      ...(params.depended_tasks ?? []),
+      ...(params.affected_tasks ?? []),
+      ...(params.local_links ?? []),
+    ];
+    if (params.parent_task) allTargetCodes.push(params.parent_task);
+
+    for (const target of allTargetCodes) {
+      if (target.toUpperCase() === code.toUpperCase()) {
+        throw new Error(`Нельзя связать задачу с самой собой (\`${code}\`).`);
+      }
+    }
+
+    // Валидация: существование целевых задач
+    if (allTargetCodes.length > 0) {
+      await this.resolveTaskIds(allTargetCodes);
+    }
+
+    // Получаем текущие связи
+    const current = await this.getCurrentLinkCodes(code);
+
+    // Собираем поля для обновления (merge)
+    const fields: TaskUpdateFields = {};
+
+    if (params.depended_tasks !== undefined) {
+      const merged = [...new Set([...current.depended, ...params.depended_tasks])];
+      fields.depended_tasks = merged;
+    }
+    if (params.affected_tasks !== undefined) {
+      const merged = [...new Set([...current.affected, ...params.affected_tasks])];
+      fields.affected_tasks = merged;
+    }
+    if (params.local_links !== undefined) {
+      const merged = [...new Set([...current.localLinks, ...params.local_links])];
+      fields.local_links = merged;
+    }
+    if (params.parent_task !== undefined) {
+      fields.parent_task = params.parent_task;
+    }
+
+    if (Object.keys(fields).length === 0) {
+      throw new Error("Не указаны связи для установки. Укажите хотя бы один параметр: depended_tasks, affected_tasks, local_links или parent_task.");
+    }
+
+    // Обновляем задачу
+    await this.updateTask(code, fields);
+
+    // Возвращаем актуальные связи
+    return this.getLinkedTasks(code);
+  }
+
+  /** Удалить связи между задачами (удаляет только указанные коды) */
+  async unlinkTasks(code: string, params: UnlinkTasksParams): Promise<LinkedTasksInfo> {
+    // Получаем текущие связи
+    const current = await this.getCurrentLinkCodes(code);
+
+    const fields: TaskUpdateFields = {};
+    let hasAny = false;
+
+    if (params.depended_tasks !== undefined) {
+      hasAny = true;
+      const removeSet = new Set(params.depended_tasks.map((c) => c.toUpperCase()));
+      fields.depended_tasks = current.depended.filter(
+        (c) => !removeSet.has(c.toUpperCase())
+      );
+    }
+    if (params.affected_tasks !== undefined) {
+      hasAny = true;
+      const removeSet = new Set(params.affected_tasks.map((c) => c.toUpperCase()));
+      fields.affected_tasks = current.affected.filter(
+        (c) => !removeSet.has(c.toUpperCase())
+      );
+    }
+    if (params.local_links !== undefined) {
+      hasAny = true;
+      const removeSet = new Set(params.local_links.map((c) => c.toUpperCase()));
+      fields.local_links = current.localLinks.filter(
+        (c) => !removeSet.has(c.toUpperCase())
+      );
+    }
+    if (params.parent_task !== undefined) {
+      hasAny = true;
+      // Если передан parent_task, и он совпадает с текущим — удаляем (null очищает связь)
+      if (current.parentTask && params.parent_task.toUpperCase() === current.parentTask.toUpperCase()) {
+        fields.parent_task = null;
+      }
+    }
+
+    if (!hasAny) {
+      throw new Error("Не указаны связи для удаления. Укажите хотя бы один параметр: depended_tasks, affected_tasks, local_links или parent_task.");
+    }
+
+    // Обновляем задачу
+    await this.updateTask(code, fields);
+
+    // Возвращаем актуальные связи
+    return this.getLinkedTasks(code);
+  }
+
+  // ── Произвольные связи (CmfRelationOption) ──────────────────
+
+  /** Получить список доступных типов связей */
+  async listRelationTypes(): Promise<RelationTypeInfo[]> {
+    try {
+      // Пробуем CmfRelationOptionType.list
+      const raw = await this.call<Array<Record<string, unknown>>>("CmfRelationOptionType.list", {
+        fields: ["**"],
+        no_meta: true,
+      });
+      return raw.map((r) => ({
+        id: r.id as string,
+        code: (r.code as string) ?? null,
+        outTypeName: (r.out_type_name as string) ?? null,
+        inTypeName: (r.in_type_name as string) ?? null,
+        choiceType: (r.choice_type as string) ?? null,
+      }));
+    } catch {
+      // Фолбэк: пробуем собрать типы из существующих связей (CmfRelationOption.list)
+      try {
+        const raw = await this.call<Array<Record<string, unknown>>>("CmfRelationOption.list", {
+          fields: ["relation_type.id", "relation_type.code", "relation_type.out_type_name", "relation_type.in_type_name", "relation_type.choice_type"],
+          no_meta: true,
+        });
+        const seen = new Map<string, RelationTypeInfo>();
+        for (const r of raw) {
+          const rt = r.relation_type as Record<string, unknown> | undefined;
+          if (rt?.id && !seen.has(rt.id as string)) {
+            seen.set(rt.id as string, {
+              id: rt.id as string,
+              code: (rt.code as string) ?? null,
+              outTypeName: (rt.out_type_name as string) ?? null,
+              inTypeName: (rt.in_type_name as string) ?? null,
+              choiceType: (rt.choice_type as string) ?? null,
+            });
+          }
+        }
+        return [...seen.values()];
+      } catch {
+        throw new Error("Не удалось получить список типов связей. Проверьте API EvaProject.");
+      }
+    }
+  }
+
+  /** Найти ID типа связи по названию или ID */
+  async resolveRelationType(nameOrId: string): Promise<{ id: string; name: string }> {
+    const types = await this.listRelationTypes();
+    // Сначала точное совпадение по ID
+    const byId = types.find((t) => t.id === nameOrId);
+    if (byId) return { id: byId.id, name: byId.outTypeName ?? byId.id };
+
+    // По коду
+    const byCode = types.find((t) => t.code?.toUpperCase() === nameOrId.toUpperCase());
+    if (byCode) return { id: byCode.id, name: byCode.outTypeName ?? byCode.code ?? byCode.id };
+
+    // По названию (out_type_name — то, что видно в UI как «Относится к»)
+    const byName = types.find(
+      (t) =>
+        t.outTypeName?.toLowerCase() === nameOrId.toLowerCase() ||
+        t.inTypeName?.toLowerCase() === nameOrId.toLowerCase()
+    );
+    if (byName) return { id: byName.id, name: byName.outTypeName ?? nameOrId };
+
+    // Частичное совпадение
+    const partial = types.find(
+      (t) =>
+        t.outTypeName?.toLowerCase().includes(nameOrId.toLowerCase()) ||
+        t.inTypeName?.toLowerCase().includes(nameOrId.toLowerCase())
+    );
+    if (partial) return { id: partial.id, name: partial.outTypeName ?? nameOrId };
+
+    const available = types.map((t) => `\`${t.outTypeName ?? t.code ?? t.id}\``).join(", ");
+    throw new Error(
+      `Тип связи "${nameOrId}" не найден. Доступные типы: ${available}. ` +
+      `Используйте list_relation_types для получения списка.`
+    );
+  }
+
+  /** Создать произвольную связь между задачами */
+  async createRelation(code: string, target: string, relationType: string): Promise<LinkedTasksInfo> {
+    // Валидация самосвязи
+    if (code.toUpperCase() === target.toUpperCase()) {
+      throw new Error(`Нельзя связать задачу с самой собой (\`${code}\`).`);
+    }
+
+    // Резолвим тип связи
+    const rt = await this.resolveRelationType(relationType);
+
+    // Создаём связь: out_link = code (исходная), in_link = target (целевая)
+    // EvaProject API принимает коды задач
+    try {
+      await this.call<string>("CmfRelationOption.create", {
+        out_link: code,
+        in_link: target,
+        relation_type: rt.id,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Если связь уже существует — не ошибка
+      if (msg.toLowerCase().includes("already") || msg.toLowerCase().includes("exist") || msg.includes("уже")) {
+        // no-op, продолжаем
+      } else {
+        throw err;
+      }
+    }
+
+    return this.getLinkedTasks(code);
+  }
+
+  /** Удалить произвольную связь */
+  async deleteRelation(relationId: string): Promise<void> {
+    await this.call<void>("CmfRelationOption.delete", {}, {
+      args: [relationId],
+    });
+  }
+
+  /** Удалить связь по паре задач и типу */
+  async deleteRelationByPair(code: string, target: string, relationType?: string): Promise<LinkedTasksInfo> {
+    const linked = await this.getLinkedTasks(code);
+
+    // Ищем связь в precedesTasks (out_tasks: code → target) и followsTasks (in_tasks: target → code)
+    const allRelations = [
+      ...linked.precedesTasks.filter((r) => r.inTask.code.toUpperCase() === target.toUpperCase()),
+      ...linked.followsTasks.filter((r) => r.outTask.code.toUpperCase() === target.toUpperCase()),
+    ];
+
+    let toDelete: RelationInfo[];
+    if (relationType) {
+      const rt = await this.resolveRelationType(relationType);
+      toDelete = allRelations.filter((r) => r.relationTypeId === rt.id);
+    } else {
+      toDelete = allRelations;
+    }
+
+    if (toDelete.length === 0) {
+      // Связь не найдена — идемпотентно, не ошибка
+      return linked;
+    }
+
+    // Удаляем все найденные связи
+    for (const rel of toDelete) {
+      try {
+        await this.deleteRelation(rel.relationId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[deleteRelationByPair] Ошибка удаления ${rel.relationId}: ${msg}`);
+      }
+    }
+
+    return this.getLinkedTasks(code);
   }
 
   /** Получить проект по коду */
@@ -422,7 +729,7 @@ export class EvaClient {
     return result.map((raw) => mapStatus(raw));
   }
 
-  /** Получить связанные задачи (родительскую, дочерние, зависимые, affected, а также связи через CmfRelationOption) */
+  /** Получить связанные задачи (родительскую, дочерние, зависимые, affected, local_links, а также связи через CmfRelationOption) */
   async getLinkedTasks(code: string): Promise<LinkedTasksInfo> {
     const raw = await this.call<Record<string, unknown>>("CmfTask.get", {
       filter: ["code", "==", code],
@@ -447,6 +754,10 @@ export class EvaClient {
         "affected_tasks.lists.id",
         "affected_tasks.lists.code",
         "affected_tasks.lists.name",
+        "local_links.**",
+        "local_links.lists.id",
+        "local_links.lists.code",
+        "local_links.lists.name",
         "in_tasks.**",
         "in_tasks.out_link.code",
         "in_tasks.out_link.name",
@@ -455,6 +766,8 @@ export class EvaClient {
         "in_tasks.relation_type.out_type_name",
         "in_tasks.relation_type.in_type_name",
         "in_tasks.relation_type.choice_type",
+        "in_tasks.relation_type.id",
+        "in_tasks.relation_type.code",
         "out_tasks.**",
         "out_tasks.out_link.code",
         "out_tasks.out_link.name",
@@ -463,6 +776,8 @@ export class EvaClient {
         "out_tasks.relation_type.out_type_name",
         "out_tasks.relation_type.in_type_name",
         "out_tasks.relation_type.choice_type",
+        "out_tasks.relation_type.id",
+        "out_tasks.relation_type.code",
       ],
     });
 
@@ -481,6 +796,8 @@ export class EvaClient {
         outTypeName: rel.relation_type?.out_type_name ?? null,
         inTypeName: rel.relation_type?.in_type_name ?? null,
         choiceType: rel.relation_type?.choice_type ?? null,
+        relationTypeId: rel.relation_type?.id ?? null,
+        relationTypeCode: rel.relation_type?.code ?? null,
       }));
     };
 
@@ -489,6 +806,7 @@ export class EvaClient {
       childTasks: mapArr((raw as Record<string, unknown>).child_tasks),
       dependedTasks: mapArr((raw as Record<string, unknown>).depended_tasks),
       affectedTasks: mapArr((raw as Record<string, unknown>).affected_tasks),
+      localLinks: mapArr((raw as Record<string, unknown>).local_links),
       precedesTasks: mapRelations((raw as Record<string, unknown>).in_tasks),
       followsTasks: mapRelations((raw as Record<string, unknown>).out_tasks),
     };
@@ -499,19 +817,33 @@ export class EvaClient {
     const fields = ["**"];
 
     // Параллельно ищем задачи по трём типам обратных связей
+    // ВАЖНО: parent_task / depended_tasks / affected_tasks — ссылочные поля,
+    // фильтровать нужно по вложенному .code, а не по самому объекту.
     const [asParent, asDepended, asAffected] = await Promise.all([
       this.call<EvaTaskRaw[]>("CmfTask.list", {
         fields,
-        filter: ["parent_task", "==", code],
-      }).catch(() => [] as EvaTaskRaw[]),
+        no_meta: true,
+        filter: ["parent_task.code", "==", code],
+      }).catch((err) => {
+        console.error(`[getReferencingTasks] parent_task.code: ${err instanceof Error ? err.message : String(err)}`);
+        return [] as EvaTaskRaw[];
+      }),
       this.call<EvaTaskRaw[]>("CmfTask.list", {
         fields,
-        filter: ["depended_tasks", "IN", [code]],
-      }).catch(() => [] as EvaTaskRaw[]),
+        no_meta: true,
+        filter: ["depended_tasks.code", "IN", [code]],
+      }).catch((err) => {
+        console.error(`[getReferencingTasks] depended_tasks.code: ${err instanceof Error ? err.message : String(err)}`);
+        return [] as EvaTaskRaw[];
+      }),
       this.call<EvaTaskRaw[]>("CmfTask.list", {
         fields,
-        filter: ["affected_tasks", "IN", [code]],
-      }).catch(() => [] as EvaTaskRaw[]),
+        no_meta: true,
+        filter: ["affected_tasks.code", "IN", [code]],
+      }).catch((err) => {
+        console.error(`[getReferencingTasks] affected_tasks.code: ${err instanceof Error ? err.message : String(err)}`);
+        return [] as EvaTaskRaw[];
+      }),
     ]);
 
     const mapArr = (arr: EvaTaskRaw[]): TaskInfo[] =>
@@ -550,6 +882,10 @@ export class EvaClient {
         "affected_tasks.lists.id",
         "affected_tasks.lists.code",
         "affected_tasks.lists.name",
+        "local_links.**",
+        "local_links.lists.id",
+        "local_links.lists.code",
+        "local_links.lists.name",
         "in_tasks.**",
         "in_tasks.out_link.code",
         "in_tasks.out_link.name",
@@ -558,6 +894,8 @@ export class EvaClient {
         "in_tasks.relation_type.out_type_name",
         "in_tasks.relation_type.in_type_name",
         "in_tasks.relation_type.choice_type",
+        "in_tasks.relation_type.id",
+        "in_tasks.relation_type.code",
         "out_tasks.**",
         "out_tasks.out_link.code",
         "out_tasks.out_link.name",
@@ -566,6 +904,10 @@ export class EvaClient {
         "out_tasks.relation_type.out_type_name",
         "out_tasks.relation_type.in_type_name",
         "out_tasks.relation_type.choice_type",
+        "out_tasks.relation_type.id",
+        "out_tasks.relation_type.code",
+        "out_tasks.relation_type.id",
+        "out_tasks.relation_type.code",
       ],
       filter: ["code", "IN", codes],
     });
@@ -585,6 +927,8 @@ export class EvaClient {
         outTypeName: rel.relation_type?.out_type_name ?? null,
         inTypeName: rel.relation_type?.in_type_name ?? null,
         choiceType: rel.relation_type?.choice_type ?? null,
+        relationTypeId: rel.relation_type?.id ?? null,
+        relationTypeCode: rel.relation_type?.code ?? null,
       }));
     };
 
@@ -597,6 +941,7 @@ export class EvaClient {
           childTasks: mapArr((raw as Record<string, unknown>).child_tasks),
           dependedTasks: mapArr((raw as Record<string, unknown>).depended_tasks),
           affectedTasks: mapArr((raw as Record<string, unknown>).affected_tasks),
+          localLinks: mapArr((raw as Record<string, unknown>).local_links),
           precedesTasks: mapRelations((raw as Record<string, unknown>).in_tasks),
           followsTasks: mapRelations((raw as Record<string, unknown>).out_tasks),
         };

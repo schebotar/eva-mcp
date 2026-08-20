@@ -80,6 +80,9 @@ export const UpdateTaskSchema = z.object({
   parent_task: z.string().optional(),
   epic: z.string().optional(),
   mark: z.string().optional(),
+  depended_tasks: z.array(z.string()).optional(),
+  affected_tasks: z.array(z.string()).optional(),
+  local_links: z.array(z.string()).optional(),
 });
 
 export const CreateTaskSchema = z.object({
@@ -344,7 +347,8 @@ export const taskToolDefs = [
     description:
       "Обновить поля задачи по её коду. Можно менять статус, исполнителя, приоритет, " +
       "дедлайн, название, описание, проект, результат, ожидание ответа (waiting_for), " +
-      "соисполнителей, наблюдателей, теги, списки (спринты), веху, родительскую задачу, эпик и оценку.",
+      "соисполнителей, наблюдателей, теги, списки (спринты), веху, родительскую задачу, эпик, оценку, " +
+      "а также связи: depended_tasks, affected_tasks, local_links.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -367,6 +371,9 @@ export const taskToolDefs = [
         parent_task: { type: "string", description: "Родительская задача. **Код задачи**" },
         epic: { type: "string", description: "Эпик. **Код задачи-эпика**" },
         mark: { type: "string", description: "Оценка (строка, например `5`)" },
+        depended_tasks: { type: "array", items: { type: "string" }, description: "Зависимые задачи (depended). **Коды задач**. Пустой массив [] очищает все зависимости." },
+        affected_tasks: { type: "array", items: { type: "string" }, description: "Связанные задачи (affected). **Коды задач**. Пустой массив [] очищает все связи." },
+        local_links: { type: "array", items: { type: "string" }, description: "Локальные связи. **Коды задач**. Пустой массив [] очищает все локальные связи." },
       },
       required: ["code"],
     },
@@ -442,6 +449,7 @@ export async function handleTaskToolCall(
         for (const t of linked.childTasks) linkedCodes.add(t.code);
         for (const t of linked.dependedTasks) linkedCodes.add(t.code);
         for (const t of linked.affectedTasks) linkedCodes.add(t.code);
+        for (const t of linked.localLinks) linkedCodes.add(t.code);
         for (const r of linked.precedesTasks) linkedCodes.add(r.inTask.code);
         for (const r of linked.followsTasks) linkedCodes.add(r.outTask.code);
 
@@ -500,6 +508,7 @@ export async function handleTaskToolCall(
         for (const t of linked.childTasks) linkedCodes.add(t.code);
         for (const t of linked.dependedTasks) linkedCodes.add(t.code);
         for (const t of linked.affectedTasks) linkedCodes.add(t.code);
+        for (const t of linked.localLinks) linkedCodes.add(t.code);
         for (const r of linked.precedesTasks) linkedCodes.add(r.inTask.code);
         for (const r of linked.followsTasks) linkedCodes.add(r.outTask.code);
 
@@ -536,8 +545,10 @@ export async function handleTaskToolCall(
       for (const [key, value] of Object.entries(rest)) {
         // Пропускаем undefined, null и пустые строки (API некорректно обрабатывает "")
         if (value === undefined || value === null || value === "") continue;
-        // Пропускаем пустые массивы
-        if (Array.isArray(value) && value.length === 0) continue;
+        // Для полей связей разрешаем пустые массивы (означает очистку связей)
+        const isLinkField = key === "depended_tasks" || key === "affected_tasks" || key === "local_links";
+        // Пропускаем пустые массивы для обычных полей, но не для связей
+        if (!isLinkField && Array.isArray(value) && value.length === 0) continue;
 
         if (key === "project") {
           // API ожидает поле parent для перемещения задачи в проект

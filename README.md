@@ -20,6 +20,11 @@ MCP-сервер для работы с системой управления п
 | `get_linked_tasks` | Связанные задачи: родительская, дочерние, depended, affected |
 | `get_referencing_tasks` | **Обратный поиск связей**: кто ссылается на эту задачу (сгруппировано по типу связи) |
 | `get_linked_tasks_batch` | **Батчевый get_linked_tasks**: связи для нескольких задач (до 50) за один вызов |
+| `link_tasks` | **Установить связи** между задачами: depended, affected, local_links, parent_task. Merge-семантика (дополняет, не затирает) |
+| `unlink_tasks` | **Удалить связи** между задачами: depended, affected, local_links, parent_task. Идемпотентен |
+| `list_relation_types` | **Список типов связей** (CmfRelationOption): «Относится к», «Доп. дочерняя задача» и др. |
+| `link_relation` | **Создать произвольную связь** (CmfRelationOption) — отображается в UI в разделе «Связи» |
+| `unlink_relation` | **Удалить произвольную связь** — по ID, паре задач или типу |
 | `get_task_worklog` | Журнал работ (timetracker) по задаче |
 | `log_work` | Списать время по задаче |
 | `get_task_history` | История изменения статусов задачи |
@@ -29,6 +34,37 @@ MCP-сервер для работы с системой управления п
 | `add_comment` | Добавить комментарий к задаче (Markdown) |
 | `get_requirement` | Получить требование из EvaReq по коду |
 | `search_requirements` | Поиск требований по статусу, исполнителю, проекту, приоритету |
+
+### 🆕 Новое в v0.7.0
+
+#### Установка и удаление связей между задачами
+- **`link_tasks`** — установка связей между задачами (depended_tasks, affected_tasks, local_links, parent_task). Merge-семантика: добавляет указанные коды к существующим связям, не затирая неупомянутые. Идемпотентен.
+- **`unlink_tasks`** — удаление связей. Удаляет только указанные коды, не трогая остальные. Идемпотентен.
+- **`update_task`** — теперь принимает `depended_tasks`, `affected_tasks`, `local_links` (включая пустые массивы для очистки).
+
+#### Произвольные связи (CmfRelationOption) — видимые в UI
+- **`list_relation_types`** — список доступных типов связей («Относится к», «Дополнительная дочерняя задача» и др.) с ID и кодами.
+- **`link_relation`** — создание произвольной связи с типом (CmfRelationOption). Связь отображается в интерфейсе EvaProject в разделе «Связи». Идемпотентен.
+- **`unlink_relation`** — удаление произвольной связи по ID, паре задач или типу. Идемпотентен.
+
+#### getReferencingTasks — исправлен обратный поиск
+- BQL-фильтры используют правильные пути `*.code` (parent_task.code, depended_tasks.code, affected_tasks.code)
+- Добавлено логирование ошибок вместо глушения
+
+#### Примеры
+```text
+# Установить зависимости (поля задачи)
+link_tasks(code="MCA-2572", depended_tasks=["MCA-2571", "MCA-2573"])
+
+# Создать связь «Относится к» (видна в UI)
+link_relation(code="MCA-2572", target="MCA-2571", relation_type="Относится к")
+
+# Удалить связь
+unlink_relation(code="MCA-2572", target="MCA-2571", relation_type="Относится к")
+
+# Список типов связей
+list_relation_types
+```
 
 ### 🆕 Новое в v0.6.0
 

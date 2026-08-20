@@ -288,9 +288,13 @@ export interface TaskUpdateFields {
   lists?: string[];       // списки/спринты
   is_milestone?: boolean;
   estimate_work?: number;
-  parent_task?: string;
+  parent_task?: string | null;  // код родительской задачи; null — очистить
   epic?: string;
   mark?: string;
+
+  depended_tasks?: string[];    // Зависимые задачи (depended)
+  affected_tasks?: string[];   // Связанные задачи (affected)
+  local_links?: string[];      // Локальные связи
 
   // Низкий приоритет — доступны в клиенте, но не в MCP-инструменте
   alarm_date?: string;
@@ -302,13 +306,10 @@ export interface TaskUpdateFields {
   logic_type?: string;
   activity?: string;
   no_control?: boolean;
-  depended_tasks?: string[];
-  affected_tasks?: string[];
   components?: string[];
   subproject?: string;
   tmplt_document?: string;
   waiting_for?: string;
-  local_links?: string[];
   is_favorite?: boolean;
   cmf_owner_assistants?: string[];
   ui_view_form?: string;
@@ -441,6 +442,8 @@ export interface RelationInfo {
   outTypeName: string | null;
   inTypeName: string | null;
   choiceType: string | null;
+  relationTypeId: string | null;   // ID типа связи (для create/delete)
+  relationTypeCode: string | null; // Код типа связи
 }
 
 /** Набор связанных задач */
@@ -449,6 +452,7 @@ export interface LinkedTasksInfo {
   childTasks: TaskInfo[];
   dependedTasks: TaskInfo[];
   affectedTasks: TaskInfo[];
+  localLinks: TaskInfo[];
   /** Задачи, следующие за этой (эта задача предшествует им) — in_tasks */
   precedesTasks: RelationInfo[];
   /** Задачи, предшествующие этой (эта задача следует за ними) — out_tasks */
@@ -468,10 +472,21 @@ export interface EvaRelationOptionRaw {
   out_link?: { code?: string; name?: string; id?: string } | null;
   in_link?: { code?: string; name?: string; id?: string } | null;
   relation_type?: {
+    id?: string;
+    code?: string;
     out_type_name?: string;
     in_type_name?: string;
     choice_type?: string;
   } | null;
+}
+
+/** Тип связи (из справочника CmfRelationOptionType) */
+export interface RelationTypeInfo {
+  id: string;
+  code: string | null;
+  outTypeName: string | null;
+  inTypeName: string | null;
+  choiceType: string | null;
 }
 
 // ── Спринты/списки ────────────────────────────────────────────
@@ -538,4 +553,22 @@ export interface SprintUpdateFields {
   logic_type?: string;
   executors?: string[];
   spectators?: string[];
+}
+
+// ── Установка/удаление связей между задачами ──────────────────
+
+/** Параметры для link_tasks — установка связей */
+export interface LinkTasksParams {
+  depended_tasks?: string[];   // Коды задач для добавления в depended
+  affected_tasks?: string[];   // Коды задач для добавления в affected
+  local_links?: string[];      // Коды задач для добавления в local_links
+  parent_task?: string;        // Код родительской задачи
+}
+
+/** Параметры для unlink_tasks — удаление связей */
+export interface UnlinkTasksParams {
+  depended_tasks?: string[];   // Коды задач для удаления из depended
+  affected_tasks?: string[];   // Коды задач для удаления из affected
+  local_links?: string[];      // Коды задач для удаления из local_links
+  parent_task?: string;        // Код родительской задачи (для удаления)
 }

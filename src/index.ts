@@ -84,7 +84,7 @@ const ALL_HANDLERS: ToolHandler[] = [
 const server = new Server(
   {
     name: "eva-mcp",
-    version: "0.6.0",
+    version: "0.7.0",
   },
   {
     capabilities: {
