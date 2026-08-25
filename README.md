@@ -34,6 +34,7 @@ MCP-сервер для работы с системой управления п
 | `add_comment` | Добавить комментарий к задаче (Markdown) |
 | `get_requirement` | Получить требование из EvaReq по коду |
 | `search_requirements` | Поиск требований по статусу, исполнителю, проекту, приоритету |
+| `update_requirement` | Обновить **черновик текста** требования по коду (Markdown) |
 
 ### 🆕 Новое в v0.7.0
 
@@ -71,7 +72,7 @@ list_relation_types
 #### Спринты, комментарии, требования, worklog и история
 - **Спринты**: `get_sprint`, `search_sprints`, `create_sprint` — полноценная работа со спринтами
 - **Комментарии**: `add_comment` — добавление комментариев с поддержкой Markdown и вложенных ответов
-- **Требования**: `get_requirement`, `search_requirements` — работа с требованиями из EvaReq
+- **Требования**: `get_requirement`, `search_requirements`, `update_requirement` — работа с требованиями из EvaReq (чтение, поиск, правка черновика текста)
 - **Worklog**: `get_task_worklog`, `log_work` — журнал работ и списание времени
 - **История**: `get_task_history` — отслеживание изменений статусов задачи
 - **create_task**: создание задач через MCP

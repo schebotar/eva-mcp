@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { EvaClient } from "../eva-client.js";
 import type { RequirementInfo } from "../types.js";
 import type { BqlFilter } from "../types.js";
+import { mdToHtml } from "../helpers/markdown.js";
 
 // ── Приоритеты: маппинг имён в числа (ChoiceInt) ──────────────
 
@@ -34,6 +35,11 @@ export const SearchRequirementsSchema = z.object({
   query: z.string().optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().min(0).optional(),
+});
+
+export const UpdateRequirementSchema = z.object({
+  code: z.string().min(1, "code обязателен"),
+  text_draft: z.string().min(1, "text_draft обязателен"),
 });
 
 // ── Форматтеры ─────────────────────────────────────────────────
@@ -231,6 +237,22 @@ export const requirementToolDefs = [
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
+  {
+    name: "update_requirement",
+    description:
+      "Обновить черновик текста требования по его коду. " +
+      "Записывает новый текст в черновик (text_draft). Опубликованный текст и выпуск версии " +
+      "в этом инструменте не затрагиваются.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        code: { type: "string", description: "**Код требования** (обязательный), например MT-BR-001 — возьми из `search_requirements`" },
+        text_draft: { type: "string", description: "Новый текст черновика требования (Markdown, конвертируется в HTML)" },
+      },
+      required: ["code", "text_draft"],
+    },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+  },
 ];
 
 // ── Хелпер: построение BQL-фильтра для требований ─────────────
@@ -307,6 +329,14 @@ export async function handleRequirementToolCall(
       });
 
       return { content: [{ type: "text", text: formatRequirementList(reqs) }] };
+    }
+
+    case "update_requirement": {
+      const { code, text_draft } = UpdateRequirementSchema.parse(args);
+
+      // Конвертируем Markdown → HTML для черновика
+      const req = await evaClient.updateRequirement(code, { text_draft: mdToHtml(text_draft) });
+      return { content: [{ type: "text", text: "✅ Черновик требования обновлён.\n\n" + formatRequirement(req) }] };
     }
 
     default:

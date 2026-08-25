@@ -125,6 +125,11 @@ export interface RequirementListParams {
   slice?: [number, number];
 }
 
+/** Поля требования, доступные для редактирования через CmfReq.update */
+export interface RequirementUpdateFields {
+  text_draft?: string; // черновик текста требования (Markdown → HTML)
+}
+
 /** Данные задачи из EvaProject */
 export interface TaskInfo {
   id: string;

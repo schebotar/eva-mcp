@@ -7,7 +7,7 @@ import type {
   LinkedTasksInfo, ReferencingTasksInfo,
   EvaRelationOptionRaw, RelationInfo,
   SprintInfo, EvaSprintRaw, SprintUpdateFields,
-  RequirementInfo, EvaReqRaw, RequirementListParams,
+  RequirementInfo, EvaReqRaw, RequirementListParams, RequirementUpdateFields,
   LinkTasksParams, UnlinkTasksParams,
   RelationTypeInfo,
 } from "./types.js";
@@ -1045,6 +1045,21 @@ export class EvaClient {
     }
     const result = await this.call<EvaReqRaw[]>("CmfReq.list", kwargs);
     return result.map((raw) => mapRequirement(raw)).filter((r) => r.code);
+  }
+
+  /** Обновить поля требования (например, черновик text_draft) по коду */
+  async updateRequirement(code: string, fields: RequirementUpdateFields): Promise<RequirementInfo> {
+    // Сначала получаем ID требования по коду
+    const resolved = await this.call<EvaReqRaw>("CmfReq.get", {
+      filter: ["code", "==", code],
+      fields: ["id"],
+    });
+
+    // ID — как args[0], поля обновления — в kwargs
+    await this.call<unknown>("CmfReq.update", { ...fields }, { args: [resolved.id] });
+
+    // После обновления получаем свежую версию требования
+    return this.getRequirement(code);
   }
 
   /** Списать время по задаче (timetracker) */
