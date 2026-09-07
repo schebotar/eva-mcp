@@ -3,6 +3,7 @@ import type {
   ProjectInfo, PersonInfo, StatusInfo, SprintInfo, RequirementInfo,
   EvaTaskRaw, EvaAttachmentRaw, EvaCommentRaw, WorklogEntryRaw, StatusHistoryEntryRaw,
   EvaProjectRaw, EvaPersonRaw, EvaStatusRaw, EvaSprintRaw, EvaReqRaw,
+  DocInfo, EvaDocRaw,
 } from "./types.js";
 import { htmlToMd } from "./helpers/markdown.js";
 
@@ -237,5 +238,26 @@ export function mapSprint(raw: EvaSprintRaw): SprintInfo {
     countTasksInProgress: raw.count_tasks_in_progress ?? null,
     countTasksInReview: raw.count_tasks_in_review ?? null,
     countTasksClosed: raw.count_tasks_closed ?? null,
+  };
+}
+
+/** Маппинг сырых данных wiki-документа → DocInfo */
+export function mapDoc(raw: EvaDocRaw): DocInfo {
+  const statusObj =
+    typeof raw.status === "object" && raw.status !== null ? raw.status : null;
+  return {
+    id: raw.id,
+    code: raw.code ?? "",
+    name: raw.name ?? "",
+    text: raw.text ? htmlToMd(raw.text) : "",
+    projectCode: raw.project?.code ?? null,
+    projectName: raw.project?.name ?? null,
+    parentCode: raw.parent?.code ?? null,
+    parentName: raw.parent?.name ?? null,
+    status: raw.status_name ?? statusObj?.name ?? (typeof raw.status === "string" ? raw.status : null),
+    createdAt: raw.cmf_created_at ?? null,
+    updatedAt: raw.cmf_modified_at ?? null,
+    ownerLogin: raw.cmf_owner?.login ?? null,
+    ownerName: raw.cmf_owner?.name ?? null,
   };
 }

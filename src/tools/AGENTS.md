@@ -99,6 +99,7 @@ function formatResult(data: SomeType): string {
 | Отчёты | `get_sprint_review`, `get_sprint_retrospective`, `get_team_workload`, `get_project_health` | `reports.tools.ts` |
 | Вложения | `get_attachments` | `attachment.tools.ts` |
 | Подписчики | `get_task_followers` | `follower.tools.ts` |
+| Wiki | `search_docs`, `get_doc`, `create_doc`, `update_doc` | `wiki.tools.ts` |
 
 Не подключены в `src/index.ts` (код есть, сервер инструменты не отдаёт): `epic.tools.ts`;
 в `sprint.tools.ts`

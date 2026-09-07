@@ -10,10 +10,11 @@ import type {
   RequirementInfo, EvaReqRaw, RequirementListParams, RequirementUpdateFields,
   LinkTasksParams, UnlinkTasksParams,
   RelationTypeInfo,
+  DocInfo, EvaDocRaw,
 } from "./types.js";
 import {
   mapTask, mapComment, mapAttachment, mapWorklog, mapHistoryEntry,
-  mapProject, mapPerson, mapStatus, mapSprint, mapRequirement,
+  mapProject, mapPerson, mapStatus, mapSprint, mapRequirement, mapDoc,
 } from "./mappers.js";
 /** HTTP-клиент для EvaProject JSON-RPC API */
 export class EvaClient {
@@ -1117,6 +1118,84 @@ export class EvaClient {
 
     // После обновления получаем свежую версию требования
     return this.getRequirement(code);
+  }
+
+  // ── Wiki-документы (EvaWiki, CmfDocument) ─────────────────
+
+  /** Получить wiki-документ по коду (например, DOC-000123) */
+  async getDoc(code: string): Promise<DocInfo> {
+    const raw = await this.call<EvaDocRaw>("CmfDocument.get", {
+      filter: ["code", "==", code],
+      fields: ["**"],
+    });
+    return mapDoc(raw);
+  }
+
+  /** Получить список wiki-документов с фильтрацией */
+  async listDocs(filter?: BqlFilter | BqlFilter[], slice?: [number, number]): Promise<DocInfo[]> {
+    const kwargs: Record<string, unknown> = {
+      // text не запрашиваем — страницы бывают на сотни КБ; текст отдаёт getDoc
+      fields: ["id", "code", "name", "project.code", "project.name", "parent.code", "parent.name", "cmf_modified_at", "cmf_owner.login", "cmf_owner.name"],
+      no_meta: true,
+      slice: slice ?? [0, 50],
+    };
+    if (filter) {
+      kwargs.filter = filter;
+    }
+    const result = await this.call<EvaDocRaw[]>("CmfDocument.list", kwargs);
+    return result.map((raw) => mapDoc(raw)).filter((d) => d.code);
+  }
+
+  /**
+   * Создать wiki-документ в проекте.
+   * ВАЖНО: без parent документ попадает в личное пространство пользователя,
+   * поэтому parent — родительская страница или сам проект (корень wiki проекта).
+   * Текст записывается только через черновик (text_draft) + do_publish.
+   */
+  async createDoc(projectCode: string, name: string, textHtml?: string, parentDocCode?: string): Promise<DocInfo> {
+    const project = await this.getProject(projectCode);
+
+    let parentId = project.id;
+    if (parentDocCode) {
+      const parentDoc = await this.call<EvaDocRaw>("CmfDocument.get", {
+        filter: ["code", "==", parentDocCode],
+        fields: ["id"],
+      });
+      parentId = parentDoc.id;
+    }
+
+    const kwargs: Record<string, unknown> = {
+      project: project.id,
+      parent: parentId,
+      name,
+    };
+    if (textHtml) {
+      kwargs.text_draft = textHtml;
+    }
+
+    const id = await this.call<string>("CmfDocument.create", kwargs);
+    if (textHtml) {
+      // do_publish переносит черновик в опубликованный text; ID — в args[0]
+      await this.call<unknown>("CmfDocument.do_publish", {}, { args: [id] });
+    }
+
+    const raw = await this.call<EvaDocRaw>("CmfDocument.get", { id, fields: ["**"] });
+    return mapDoc(raw);
+  }
+
+  /** Заменить текст wiki-документа (черновик text_draft + do_publish) */
+  async updateDoc(code: string, textHtml: string): Promise<DocInfo> {
+    const resolved = await this.call<EvaDocRaw>("CmfDocument.get", {
+      filter: ["code", "==", code],
+      fields: ["id"],
+    });
+
+    // ID — в args[0]; запись напрямую в text API отклоняет
+    await this.call<unknown>("CmfDocument.update", { text_draft: textHtml }, { args: [resolved.id] });
+    await this.call<unknown>("CmfDocument.do_publish", {}, { args: [resolved.id] });
+
+    const raw = await this.call<EvaDocRaw>("CmfDocument.get", { id: resolved.id, fields: ["**"] });
+    return mapDoc(raw);
   }
 
   /** Списать время по задаче (timetracker) */
