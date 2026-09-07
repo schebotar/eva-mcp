@@ -95,6 +95,7 @@ function formatResult(data: SomeType): string {
 | Требования | `get_requirement`, `search_requirements`, `update_requirement` | `requirement.tools.ts` |
 | Пользователи | `search_users`, `get_statuses` | `user.tools.ts` |
 | Проекты | `get_project`, `search_projects` | `project.tools.ts` |
+| Wiki | `search_docs`, `get_doc`, `create_doc`, `update_doc` | `wiki.tools.ts` |
 
 Не подключены в `src/index.ts` (код есть, сервер инструменты не отдаёт): `attachment.tools.ts`,
 `follower.tools.ts`, `metrics.tools.ts`, `reports.tools.ts`, `epic.tools.ts`; в `sprint.tools.ts`

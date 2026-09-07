@@ -602,3 +602,37 @@ export interface UnlinkTasksParams {
   local_links?: string[];      // Коды задач для удаления из local_links
   parent_task?: string;        // Код родительской задачи (для удаления)
 }
+
+// ── Wiki-документы (EvaWiki, CmfDocument) ─────────────────────
+
+/** Нормализованная информация о странице wiki */
+export interface DocInfo {
+  id: string;
+  code: string;
+  name: string;
+  text: string;               // Markdown (сконвертирован из HTML)
+  projectCode: string | null;
+  projectName: string | null;
+  parentCode: string | null;  // код родителя: проект (корень wiki) или документ
+  parentName: string | null;
+  status: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  ownerLogin: string | null;
+  ownerName: string | null;
+}
+
+/** Сырые данные документа из API EvaProject */
+export interface EvaDocRaw {
+  id: string;
+  code?: string;
+  name?: string;
+  text?: string;
+  project?: { code?: string; name?: string } | null;
+  parent?: { code?: string; name?: string } | null;
+  status?: { id?: string; name?: string } | string | null;
+  status_name?: string;
+  cmf_created_at?: string;
+  cmf_modified_at?: string;
+  cmf_owner?: { login?: string; name?: string } | null;
+}
