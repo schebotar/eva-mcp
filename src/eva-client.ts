@@ -80,7 +80,17 @@ export class EvaClient {
       );
     }
 
-    return (data as JsonRpcResponse<T>).result;
+    const { result, abort } = data as JsonRpcResponse<T>;
+
+    // Отказ бизнес-валидации приходит как HTTP 200 + result: null, а причина —
+    // в поле abort (строка). Без этой проверки отказ выглядел бы как успешный
+    // пустой ответ: например, CmfTask.create с project_id вместо project молча
+    // не создавал задачу.
+    if (typeof abort === "string" && abort.trim()) {
+      throw new Error(`EvaProject API: ${method} отклонён — ${abort.trim()}`);
+    }
+
+    return result;
   }
 
   /** Получить задачу по коду (например, DEV-000003) */

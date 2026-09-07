@@ -12,6 +12,13 @@ export interface JsonRpcRequest {
 export interface JsonRpcResponse<T = unknown> {
   result: T;
   id?: string;
+  /**
+   * Отказ бизнес-валидации: строка с причиной при отказе, null при успехе.
+   * Приходит с HTTP 200 и `result: null` — в `error` такие отказы НЕ попадают.
+   */
+  abort?: string | null;
+  /** Служебные предупреждения сервера (например, «API: No callid specified») */
+  alert?: string[] | null;
 }
 
 /** JSON-RPC ошибка */
