@@ -1,5 +1,6 @@
 import type { EvaClient } from "../eva-client.js";
 import type { SprintInfo } from "../types.js";
+import { fetchScopedTasks } from "../helpers/scoped-tasks.js";
 
 export interface VelocitySprint {
   code: string;
@@ -30,10 +31,16 @@ export async function computeVelocity(
   projectCode: string,
   sprintCount: number = 3
 ): Promise<VelocityResult> {
-  // Получаем все спринты
-  const allSprints = await evaClient.listSprints();
-  const projectSprints = allSprints.filter(
-    (s) => s.projectCode === projectCode
+  // Спринты проекта, включая архивные: velocity считается как раз по закрытым
+  // спринтам, а они уходят в архив и без include_archived в выдачу не попадают
+  const project = await evaClient.getProject(projectCode);
+  const projectSprints = await evaClient.listSprints(
+    [
+      ["parent_id", "==", project.id],
+      ["code", "LIKE", "SPR-%"],
+    ],
+    undefined,
+    true
   );
 
   // Сортируем по дате создания (новые первые)
@@ -43,14 +50,10 @@ export async function computeVelocity(
 
   const recent = sorted.slice(0, sprintCount);
 
-  // Получаем все задачи
-  const allTasks = await evaClient.listTasks();
   const result: VelocitySprint[] = [];
 
   for (const sprint of recent) {
-    const sprintTasks = allTasks.filter((t) =>
-      t.lists.some((l) => l.code === sprint.code || l.id === sprint.code)
-    );
+    const sprintTasks = await fetchScopedTasks(evaClient, { sprintCode: sprint.code });
     const completed = sprintTasks.filter((t) => isClosed(t.statusName)).length;
     result.push({
       code: sprint.code,
