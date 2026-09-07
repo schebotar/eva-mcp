@@ -1,4 +1,6 @@
-import "dotenv/config";
+import { config as loadEnv } from "dotenv";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -23,6 +25,15 @@ import { requirementToolDefs, handleRequirementToolCall } from "./tools/requirem
 // import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
 // import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
 // import { reportsToolDefs, handleReportsToolCall } from "./tools/reports.tools.js";
+
+// ── Переменные окружения ───────────────────────────────────────
+
+// .env из рабочей папки — прежнее поведение при запуске из репозитория.
+// Плюс .env рядом с самим пакетом: когда сервер запущен как плагин Claude Code,
+// рабочая папка чужая. Уже заданные переменные окружения приоритетнее —
+// dotenv их не перезаписывает.
+loadEnv();
+loadEnv({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
 
 // ── Конфигурация ───────────────────────────────────────────────
 

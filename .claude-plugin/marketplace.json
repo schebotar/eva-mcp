@@ -1,0 +1,15 @@
+{
+  "name": "eva-mcp",
+  "description": "Плагин eva-mcp: MCP-сервер EvaProject (EvaTeam) и скилл со сценариями работы с задачами, спринтами и требованиями",
+  "owner": {
+    "name": "Sergey Chebotari",
+    "url": "https://github.com/schebotar"
+  },
+  "plugins": [
+    {
+      "name": "eva-mcp",
+      "source": "./",
+      "description": "MCP-сервер EvaProject (EvaTeam) и скилл со сценариями работы"
+    }
+  ]
+}

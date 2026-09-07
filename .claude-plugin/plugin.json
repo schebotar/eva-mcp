@@ -1,0 +1,15 @@
+{
+  "name": "eva-mcp",
+  "description": "MCP-сервер EvaProject (EvaTeam) и скилл со сценариями: задачи, спринты, связи, требования, worklog",
+  "version": "0.1.0",
+  "author": {
+    "name": "Sergey Chebotari"
+  },
+  "repository": "https://github.com/schebotar/eva-mcp",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "evaproject",
+    "evateam"
+  ]
+}
