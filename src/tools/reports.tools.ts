@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { EvaClient } from "../eva-client.js";
+import { fetchScopedTasks } from "../helpers/scoped-tasks.js";
 import type { TaskInfo, SprintInfo } from "../types.js";
 
 // ── Zod-схемы ──────────────────────────────────────────────────
@@ -294,24 +295,14 @@ export async function handleReportsToolCall(
 ): Promise<{ content: { type: "text"; text: string }[]; isError?: boolean } | null> {
   switch (name) {
     case "get_sprint_review": {
-      const { sprint, project } = SprintReviewSchema.parse(args);
-      const allTasks = await evaClient.listTasks({
-        filter: [["parent", "==", project]],
-      });
-      const tasks = allTasks.filter((t) =>
-        t.lists.some((l) => l.code === sprint || l.id === sprint)
-      );
+      const { sprint } = SprintReviewSchema.parse(args);
+      const tasks = await fetchScopedTasks(evaClient, { sprintCode: sprint });
       return { content: [{ type: "text", text: formatSprintReview(tasks, sprint) }] };
     }
 
     case "get_sprint_retrospective": {
-      const { sprint, project } = SprintReviewSchema.parse(args);
-      const allTasks = await evaClient.listTasks({
-        filter: [["parent", "==", project]],
-      });
-      const tasks = allTasks.filter((t) =>
-        t.lists.some((l) => l.code === sprint || l.id === sprint)
-      );
+      const { sprint } = SprintReviewSchema.parse(args);
+      const tasks = await fetchScopedTasks(evaClient, { sprintCode: sprint });
 
       // Примерный cycle time (упрощённо)
       const closedTasks = tasks.filter((t) => isClosed(t.statusName) && t.createdAt && t.statusClosedAt);
@@ -330,26 +321,25 @@ export async function handleReportsToolCall(
 
     case "get_team_workload": {
       const { project, sprint } = TeamWorkloadSchema.parse(args);
-      const allTasks = await evaClient.listTasks({
-        filter: [["parent", "==", project]],
+      const tasks = await fetchScopedTasks(evaClient, {
+        projectCode: project,
+        sprintCode: sprint,
       });
-      let tasks = allTasks.filter((t) => t.projectCode === project);
-      if (sprint) {
-        tasks = tasks.filter((t) =>
-          t.lists.some((l) => l.code === sprint || l.id === sprint)
-        );
-      }
       return { content: [{ type: "text", text: formatTeamWorkload(tasks, project) }] };
     }
 
     case "get_project_health": {
       const { project } = ProjectHealthSchema.parse(args);
-      const allTasks = await evaClient.listTasks({
-        filter: [["parent", "==", project]],
-      });
-      const tasks = allTasks.filter((t) => t.projectCode === project);
-      const allSprints = await evaClient.listSprints();
-      const sprints = allSprints.filter((s) => s.projectCode === project);
+      const tasks = await fetchScopedTasks(evaClient, { projectCode: project });
+      const projectInfo = await evaClient.getProject(project);
+      const sprints = await evaClient.listSprints(
+        [
+          ["parent_id", "==", projectInfo.id],
+          ["code", "LIKE", "SPR-%"],
+        ],
+        undefined,
+        true
+      );
       return { content: [{ type: "text", text: formatProjectHealth(tasks, sprints, project) }] };
     }
 
