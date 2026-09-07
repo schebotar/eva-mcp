@@ -1,5 +1,6 @@
 import type { EvaClient } from "../eva-client.js";
 import type { TaskInfo } from "../types.js";
+import { fetchScopedTasks } from "../helpers/scoped-tasks.js";
 
 export interface CFDDatePoint {
   date: string;
@@ -21,17 +22,7 @@ export async function computeCFD(
   sprintCode?: string,
   daysBack: number = 14
 ): Promise<CFDResult> {
-  const allTasks = await evaClient.listTasks();
-  let tasks = allTasks;
-
-  if (projectCode) {
-    tasks = tasks.filter((t) => t.projectCode === projectCode);
-  }
-  if (sprintCode) {
-    tasks = tasks.filter((t) =>
-      t.lists.some((l) => l.code === sprintCode || l.id === sprintCode)
-    );
-  }
+  const tasks = await fetchScopedTasks(evaClient, { projectCode, sprintCode });
 
   if (tasks.length === 0) {
     return { dates: [], statuses: [], totalTasks: 0 };
