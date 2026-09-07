@@ -12,6 +12,7 @@ export const SearchSprintsSchema = z.object({
   project: z.string().optional(),
   status: z.string().optional(),
   query: z.string().optional(),
+  include_archived: z.boolean().optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().min(0).optional(),
 });
@@ -41,6 +42,24 @@ const DeleteSprintSchema = z.object({
 
 // ── Форматтеры ─────────────────────────────────────────────────
 
+/** Счётчики задач спринта; null во всех — поля скрыты правами токена */
+function taskCounts(s: SprintInfo): { open: number; inProgress: number; inReview: number; closed: number; total: number } | null {
+  const parts = [s.countTasksOpen, s.countTasksInProgress, s.countTasksInReview, s.countTasksClosed];
+  if (parts.every((n) => n === null)) return null;
+  const [open, inProgress, inReview, closed] = parts.map((n) => n ?? 0);
+  return { open, inProgress, inReview, closed, total: open + inProgress + inReview + closed };
+}
+
+/**
+ * Оговорка про счётчики архивных спринтов: они перестают обновляться при
+ * архивации, поэтому разбивка по статусам расходится с текущим составом.
+ */
+const ARCHIVED_COUNTS_NOTE =
+  "> 📦 Спринт в архиве. Счётчики задач у архивных спринтов — снимок на момент архивации: " +
+  "сумма обычно верна, а разбивка по статусам может не совпадать с текущими статусами задач. " +
+  "Актуальный состав: `search_tasks` с `sprint` и `include_archived: true` " +
+  "(задачи закрытых спринтов тоже архивируются).";
+
 function formatSprint(sprint: SprintInfo): string {
   const lines: string[] = [
     `# ${sprint.code}: ${sprint.name}`,
@@ -55,6 +74,7 @@ function formatSprint(sprint: SprintInfo): string {
     `| **Дата начала** | ${sprint.startDate ?? "—"} |`,
     `| **Дата окончания** | ${sprint.endDate ?? "—"} |`,
     `| **По умолчанию** | ${sprint.isDefault ? "✅ Да" : "Нет"} |`,
+    `| **В архиве** | ${sprint.archived ? "📦 Да" : "Нет"} |`,
     `| **Создан** | ${sprint.createdAt ?? "—"} |`,
     `| **Обновлён** | ${sprint.updatedAt ?? "—"} |`,
     `| **Тип** | \`${sprint.sysType ?? "—"}\` |`,
@@ -62,8 +82,23 @@ function formatSprint(sprint: SprintInfo): string {
     `| **Workflow** | \`${sprint.workflowCode ?? "—"}\` — ${sprint.workflowName ?? "—"} |`,
     `| **SchemeWF** | \`${sprint.schemeWfCode ?? "—"}\` — ${sprint.schemeWfName ?? "—"} |`,
     `| **Родитель** | ${sprint.treeParentName ?? "—"} (\`${sprint.treeParentCode ?? "—"}\`) |`,
-    "",
   ];
+
+  const counts = taskCounts(sprint);
+  if (counts) {
+    lines.push(
+      `| **Задач всего** | ${counts.total} |`,
+      `| **— открыто** | ${counts.open} |`,
+      `| **— в работе** | ${counts.inProgress} |`,
+      `| **— на ревью** | ${counts.inReview} |`,
+      `| **— закрыто** | ${counts.closed} |`
+    );
+  }
+
+  lines.push("");
+  if (sprint.archived && counts) {
+    lines.push(ARCHIVED_COUNTS_NOTE, "");
+  }
 
   return lines.join("\n");
 }
@@ -81,18 +116,26 @@ function formatSprintList(sprints: SprintInfo[], total?: number): string {
   const lines: string[] = [
     header,
     "",
-    "| Код | Название | Статус | Проект | Даты |",
-    "|-----|----------|--------|--------|------|",
+    "| Код | Название | Статус | Проект | Даты | Задачи (всего: откр/раб/ревью/закр) |",
+    "|-----|----------|--------|--------|------|-------------------------------------|",
   ];
 
+  let hasArchived = false;
   for (const s of sprints) {
     const dates = [s.startDate, s.endDate]
       .filter(Boolean)
       .map((d) => d?.slice(0, 10))
       .join(" → ") || "—";
+    const c = taskCounts(s);
+    const tasks = c ? `${c.total}: ${c.open}/${c.inProgress}/${c.inReview}/${c.closed}` : "—";
+    if (s.archived) hasArchived = true;
     lines.push(
-      `| \`${s.code}\` | ${s.name} | ${s.statusName ?? "—"} | ${s.projectName ?? "—"} | ${dates} |`
+      `| \`${s.code}\`${s.archived ? " 📦" : ""} | ${s.name} | ${s.statusName ?? "—"} | ${s.projectName ?? "—"} | ${dates} | ${tasks} |`
     );
+  }
+
+  if (hasArchived) {
+    lines.push("", ARCHIVED_COUNTS_NOTE);
   }
 
   return lines.join("\n");
@@ -105,7 +148,8 @@ export const sprintToolDefs = [
     name: "get_sprint",
     description:
       "Получить информацию о спринте (списке) по его коду. Возвращает название, статус, " +
-      "проект, даты начала/окончания, владельца и признак «по умолчанию».",
+      "проект, даты начала/окончания, владельца, признак «по умолчанию», признак архива " +
+      "и счётчики задач по статусам. Архивные (закрытые) спринты доступны по коду наравне с обычными.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -119,13 +163,20 @@ export const sprintToolDefs = [
     name: "search_sprints",
     description:
       "Поиск спринтов по фильтрам: проекту, статусу, текстовому запросу. " +
-      "Возвращает список спринтов в виде таблицы.",
+      "Возвращает таблицу со счётчиками задач (всего: открыто/в работе/на ревью/закрыто). " +
+      "Закрытые спринты архивируются — чтобы увидеть их, передай include_archived: true.",
     inputSchema: {
       type: "object" as const,
       properties: {
         project: { type: "string", description: "Фильтр по проекту. **Код проекта** — возьми из `search_projects`" },
         status: { type: "string", description: "Фильтр по статусу. **Код** статуса — возьми из `get_statuses`" },
         query: { type: "string", description: "Текстовый поиск по **названию** спринта" },
+        include_archived: {
+          type: "boolean",
+          description:
+            "Включить архивные спринты (закрытые спринты уходят в архив и по умолчанию не показываются). " +
+            "По умолчанию false",
+        },
         limit: { type: "number", description: "Максимальное количество результатов" },
         offset: { type: "number", description: "Смещение для пагинации" },
       },
@@ -218,13 +269,16 @@ export async function handleSprintToolCall(
       const slice: [number, number] | undefined =
         params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
 
+      const includeArchived = params.include_archived ?? false;
+
       const sprints = await evaClient.listSprints(
         bqlFilters.length > 0 ? bqlFilters : undefined,
-        slice
+        slice,
+        includeArchived
       );
 
       const total = bqlFilters.length > 0
-        ? await evaClient.countSprints(bqlFilters)
+        ? await evaClient.countSprints(bqlFilters, includeArchived)
         : undefined;
 
       return { content: [{ type: "text", text: formatSprintList(sprints, total) }] };

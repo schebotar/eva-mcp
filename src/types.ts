@@ -280,6 +280,8 @@ export interface TaskListParams {
   filter?: BqlFilter | BqlFilter[];
   fields?: string[];
   slice?: [number, number]; // [offset, limit]
+  /** Включить архивные задачи (задачи закрытых спринтов архивируются вместе с ними) */
+  includeArchived?: boolean;
 }
 
 // ── Обновление задачи ─────────────────────────────────────────
@@ -527,6 +529,17 @@ export interface SprintInfo {
   schemeWfName: string | null;
   treeParentCode: string | null;
   treeParentName: string | null;
+  /** Спринт в архиве (закрытые спринты архивируются) */
+  archived: boolean;
+  /**
+   * Счётчики задач спринта. null — поле недоступно токену (ACL).
+   * У архивных спринтов счётчики перестают обновляться: сумма обычно верна,
+   * а разбивка по статусам — снимок на момент архивации.
+   */
+  countTasksOpen: number | null;
+  countTasksInProgress: number | null;
+  countTasksInReview: number | null;
+  countTasksClosed: number | null;
 }
 
 /** Сырые данные спринта из API EvaProject */
@@ -548,6 +561,11 @@ export interface EvaSprintRaw {
   workflow?: { code?: string; name?: string } | null;
   scheme_wf?: { code?: string; name?: string } | null;
   tree_parent?: { code?: string; name?: string } | null;
+  cmf_archived?: boolean;
+  count_tasks_open?: number;
+  count_tasks_in_progress?: number;
+  count_tasks_in_review?: number;
+  count_tasks_closed?: number;
 }
 
 /** Поля для создания/обновления спринта */

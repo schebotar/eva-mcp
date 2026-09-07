@@ -40,6 +40,7 @@ export const SearchTasksSchema = z.object({
   created_from: z.string().optional(),
   created_to: z.string().optional(),
   no_sprint: z.boolean().optional(),
+  include_archived: z.boolean().optional(),
   limit: z.number().int().positive().optional(),
   offset: z.number().int().min(0).optional(),
 });
@@ -58,6 +59,7 @@ export const CountTasksSchema = z.object({
   created_from: z.string().optional(),
   created_to: z.string().optional(),
   no_sprint: z.boolean().optional(),
+  include_archived: z.boolean().optional(),
 });
 
 export const UpdateTaskSchema = z.object({
@@ -295,7 +297,8 @@ export const taskToolDefs = [
     name: "search_tasks",
     description:
       "Поиск задач по фильтрам. Можно фильтровать по статусу, исполнителю, проекту, " +
-      "приоритету, типу, текстовому запросу и датам изменения/создания. Возвращает список задач в виде таблицы.",
+      "приоритету, типу, текстовому запросу и датам изменения/создания. Возвращает список задач в виде таблицы. " +
+      "Для состава закрытого (архивного) спринта нужен include_archived: true.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -312,6 +315,12 @@ export const taskToolDefs = [
         created_from: { type: "string", description: "Дата создания ОТ (ISO). Фильтр по полю `cmf_created_at`" },
         created_to: { type: "string", description: "Дата создания ДО (ISO). Фильтр по полю `cmf_created_at`" },
         no_sprint: { type: "boolean", description: "Только задачи без спринта (бэклог). Клиентский фильтр — работает поверх результатов API." },
+        include_archived: {
+          type: "boolean",
+          description:
+            "Включить архивные задачи. Нужно для состава закрытых спринтов: при архивации спринта " +
+            "его задачи тоже уходят в архив и по умолчанию не возвращаются. По умолчанию false",
+        },
         limit: { type: "number", description: "Максимальное количество результатов" },
         offset: { type: "number", description: "Смещение для пагинации" },
       },
@@ -338,6 +347,12 @@ export const taskToolDefs = [
         created_from: { type: "string", description: "Дата создания ОТ (ISO). Фильтр по `cmf_created_at`" },
         created_to: { type: "string", description: "Дата создания ДО (ISO). Фильтр по `cmf_created_at`" },
         no_sprint: { type: "boolean", description: "Только задачи без спринта (бэклог). Клиентский фильтр." },
+        include_archived: {
+          type: "boolean",
+          description:
+            "Включить архивные задачи. Нужно для состава закрытых спринтов: при архивации спринта " +
+            "его задачи тоже уходят в архив и по умолчанию не возвращаются. По умолчанию false",
+        },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -433,7 +448,7 @@ export async function handleTaskToolCall(
       }
 
       // Извлекаем no_sprint и linked_to — обрабатываются отдельно, не через BQL
-      const { linked_to, no_sprint, ...restParams } = params as Record<string, unknown>;
+      const { linked_to, no_sprint, include_archived, ...restParams } = params as Record<string, unknown>;
       const filterArgs: Record<string, unknown> = { ...restParams };
       if (projectId) filterArgs.project = projectId;
       // Конвертируем строковый приоритет в число (API ожидает ChoiceInt)
@@ -464,9 +479,12 @@ export async function handleTaskToolCall(
       const slice: [number, number] | undefined =
         params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
 
+      const includeArchived = include_archived === true;
+
       let tasks = await evaClient.listTasks({
         filter: filters.length > 0 ? filters : undefined,
         slice,
+        includeArchived,
       });
 
       // Клиентская фильтрация: только задачи без спринта (бэклог)
@@ -475,7 +493,7 @@ export async function handleTaskToolCall(
       }
 
       const total = filters.length > 0 && !no_sprint
-        ? await evaClient.countTasks(filters)
+        ? await evaClient.countTasks(filters, includeArchived)
         : undefined;
 
       return { content: [{ type: "text", text: formatTaskList(tasks, total) }] };
@@ -492,7 +510,7 @@ export async function handleTaskToolCall(
       }
 
       // Извлекаем no_sprint и linked_to — обрабатываются отдельно, не через BQL
-      const { linked_to, no_sprint, ...restParams } = params as Record<string, unknown>;
+      const { linked_to, no_sprint, include_archived, ...restParams } = params as Record<string, unknown>;
       const filterArgs: Record<string, unknown> = { ...restParams };
       if (projectId) filterArgs.project = projectId;
       // Конвертируем строковый приоритет в число (API ожидает ChoiceInt)
@@ -519,17 +537,21 @@ export async function handleTaskToolCall(
         }
       }
 
+      const includeArchived = include_archived === true;
+
       // no_sprint — клиентский фильтр: получаем задачи и считаем отфильтрованные
       if (no_sprint === true) {
         const tasks = await evaClient.listTasks({
           filter: filters.length > 0 ? filters : undefined,
+          includeArchived,
         });
         const count = tasks.filter((t) => t.lists.length === 0).length;
         return { content: [{ type: "text", text: `Найдено задач: **${count}**` }] };
       }
 
       const count = await evaClient.countTasks(
-        filters.length > 0 ? filters : undefined
+        filters.length > 0 ? filters : undefined,
+        includeArchived
       );
       return { content: [{ type: "text", text: `Найдено задач: **${count}**` }] };
     }

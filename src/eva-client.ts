@@ -176,15 +176,23 @@ export class EvaClient {
       kwargs.slice = params.slice;
     }
 
+    // Архивные задачи (в том числе задачи закрытых спринтов) по умолчанию скрыты
+    if (params.includeArchived) {
+      kwargs.include_archived = "true";
+    }
+
     const result = await this.call<EvaTaskRaw[]>("CmfTask.list", kwargs);
     return result.map((raw) => mapTask(raw)).filter((t) => t.code);
   }
 
   /** Получить количество задач по фильтру */
-  async countTasks(filter?: BqlFilter | BqlFilter[]): Promise<number> {
+  async countTasks(filter?: BqlFilter | BqlFilter[], includeArchived = false): Promise<number> {
     const kwargs: Record<string, unknown> = { no_meta: true };
     if (filter) {
       kwargs.filter = filter;
+    }
+    if (includeArchived) {
+      kwargs.include_archived = "true";
     }
     return this.call<number>("CmfTask.count", kwargs);
   }
@@ -578,8 +586,15 @@ export class EvaClient {
     return mapSprint(raw);
   }
 
-  /** Получить список спринтов с фильтрацией */
-  async listSprints(filter?: BqlFilter | BqlFilter[], slice?: [number, number]): Promise<SprintInfo[]> {
+  /**
+   * Получить список спринтов с фильтрацией.
+   * Закрытые спринты архивируются и без includeArchived в выдачу не попадают.
+   */
+  async listSprints(
+    filter?: BqlFilter | BqlFilter[],
+    slice?: [number, number],
+    includeArchived = false
+  ): Promise<SprintInfo[]> {
     const kwargs: Record<string, unknown> = {
       fields: ["**"],
       no_meta: true,
@@ -590,15 +605,22 @@ export class EvaClient {
     if (slice) {
       kwargs.slice = slice;
     }
+    // API ждёт строку "true", булево значение молча игнорируется
+    if (includeArchived) {
+      kwargs.include_archived = "true";
+    }
     const result = await this.call<EvaSprintRaw[]>("CmfList.list", kwargs);
     return result.map((raw) => mapSprint(raw)).filter((s) => s.code);
   }
 
   /** Получить количество спринтов по фильтру */
-  async countSprints(filter?: BqlFilter | BqlFilter[]): Promise<number> {
+  async countSprints(filter?: BqlFilter | BqlFilter[], includeArchived = false): Promise<number> {
     const kwargs: Record<string, unknown> = { no_meta: true };
     if (filter) {
       kwargs.filter = filter;
+    }
+    if (includeArchived) {
+      kwargs.include_archived = "true";
     }
     return this.call<number>("CmfList.count", kwargs);
   }

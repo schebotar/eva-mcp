@@ -232,5 +232,10 @@ export function mapSprint(raw: EvaSprintRaw): SprintInfo {
     schemeWfName: raw.scheme_wf?.name ?? null,
     treeParentCode: raw.tree_parent?.code ?? null,
     treeParentName: raw.tree_parent?.name ?? null,
+    archived: raw.cmf_archived ?? false,
+    countTasksOpen: raw.count_tasks_open ?? null,
+    countTasksInProgress: raw.count_tasks_in_progress ?? null,
+    countTasksInReview: raw.count_tasks_in_review ?? null,
+    countTasksClosed: raw.count_tasks_closed ?? null,
   };
 }
