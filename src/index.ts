@@ -22,9 +22,9 @@ import { worklogToolDefs, handleWorklogToolCall } from "./tools/worklog.tools.js
 import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js";
 import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
 import { requirementToolDefs, handleRequirementToolCall } from "./tools/requirement.tools.js";
-// import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
+import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
 // import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
-// import { reportsToolDefs, handleReportsToolCall } from "./tools/reports.tools.js";
+import { reportsToolDefs, handleReportsToolCall } from "./tools/reports.tools.js";
 
 // ── Переменные окружения ───────────────────────────────────────
 
@@ -61,9 +61,9 @@ const ALL_TOOL_DEFS = [
   ...sprintToolDefs,
   ...commentToolDefs,
   ...requirementToolDefs,
-  // ...metricsToolDefs,
+  ...metricsToolDefs,
   // ...epicToolDefs,
-  // ...reportsToolDefs,
+  ...reportsToolDefs,
 ];
 
 // Все обработчики в порядке приоритета
@@ -85,9 +85,9 @@ const ALL_HANDLERS: ToolHandler[] = [
   handleSprintToolCall,
   handleCommentToolCall,
   handleRequirementToolCall,
-  // handleMetricsToolCall,
+  handleMetricsToolCall,
   // handleEpicToolCall,
-  // handleReportsToolCall,
+  handleReportsToolCall,
 ];
 
 // ── MCP Server ─────────────────────────────────────────────────

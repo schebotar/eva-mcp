@@ -28,6 +28,17 @@ function isClosed(statusName: string | null): boolean {
     .some((s) => lower.includes(s));
 }
 
+/**
+ * Задача в работе. Как и isClosed, учитывает русские названия статусов:
+ * проверка только по "progress" давала ноль на проектах с русским процессом.
+ */
+function isInProgress(statusName: string | null): boolean {
+  if (!statusName) return false;
+  const lower = statusName.toLowerCase();
+  return ["progress", "doing", "в работе", "в процессе", "выполняется"]
+    .some((s) => lower.includes(s));
+}
+
 // ── Форматтеры ─────────────────────────────────────────────────
 
 function formatSprintReview(
@@ -88,7 +99,7 @@ function formatSprintReview(
     lines.push("|-----|----------|--------|---------|");
     for (const t of notDone) {
       const name = (t.name ?? "").length > 50 ? t.name.slice(0, 47) + "..." : t.name;
-      const reason = t.statusName?.toLowerCase().includes("progress") ? "В процессе" : "Не начато";
+      const reason = isInProgress(t.statusName) ? "В процессе" : "Не начато";
       lines.push(`| \`${t.code}\` | ${name} | ${t.statusName ?? "—"} | ${reason} |`);
     }
   }
@@ -172,12 +183,10 @@ function formatTeamWorkload(
 
   for (const [name, personTasks] of byPerson) {
     const total = personTasks.length;
-    const open = personTasks.filter((t) =>
-      !isClosed(t.statusName) && !(t.statusName?.toLowerCase().includes("progress"))
+    const open = personTasks.filter(
+      (t) => !isClosed(t.statusName) && !isInProgress(t.statusName)
     ).length;
-    const inProgress = personTasks.filter((t) =>
-      t.statusName?.toLowerCase().includes("progress") === true
-    ).length;
+    const inProgress = personTasks.filter((t) => isInProgress(t.statusName)).length;
     const closed = personTasks.filter((t) => isClosed(t.statusName)).length;
     const estimate = personTasks.reduce((sum, t) => sum + (t.estimateWork ?? 0), 0);
 
