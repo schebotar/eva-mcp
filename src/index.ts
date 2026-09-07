@@ -23,6 +23,7 @@ import { historyToolDefs, handleHistoryToolCall } from "./tools/history.tools.js
 import { commentToolDefs, handleCommentToolCall } from "./tools/comment.tools.js";
 import { requirementToolDefs, handleRequirementToolCall } from "./tools/requirement.tools.js";
 import { metricsToolDefs, handleMetricsToolCall } from "./tools/metrics.tools.js";
+import { wikiToolDefs, handleWikiToolCall } from "./tools/wiki.tools.js";
 // import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
 import { reportsToolDefs, handleReportsToolCall } from "./tools/reports.tools.js";
 
@@ -62,6 +63,7 @@ const ALL_TOOL_DEFS = [
   ...commentToolDefs,
   ...requirementToolDefs,
   ...metricsToolDefs,
+  ...wikiToolDefs,
   // ...epicToolDefs,
   ...reportsToolDefs,
 ];
@@ -86,6 +88,7 @@ const ALL_HANDLERS: ToolHandler[] = [
   handleCommentToolCall,
   handleRequirementToolCall,
   handleMetricsToolCall,
+  handleWikiToolCall,
   // handleEpicToolCall,
   handleReportsToolCall,
 ];
@@ -95,7 +98,7 @@ const ALL_HANDLERS: ToolHandler[] = [
 const server = new Server(
   {
     name: "eva-mcp",
-    version: "0.7.0",
+    version: "0.8.0",
   },
   {
     capabilities: {
