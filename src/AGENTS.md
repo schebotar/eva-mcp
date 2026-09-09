@@ -1,11 +1,12 @@
----
-description: "Use when: adding new API methods to EvaClient class in src/eva-client.ts, working with JSON-RPC 2.2 calls, adding new raw/normalized types in src/types.ts, or extending the BQL filter system."
-applyTo: ["src/eva-client.ts", "src/types.ts"]
----
+# Правила слоя API (`src/`) — AGENTS.md
 
-# Расширение EvaClient и типов API
+Правила для работы с **API-слоем** сервера: класс `EvaClient` (`src/eva-client.ts`),
+типы (`src/types.ts`), мапперы (`src/mappers.ts`), JSON-RPC 2.2 вызовы и BQL-фильтры.
+Используй при добавлении новых API-методов, raw/normalized-типов или расширении BQL.
 
-## Добавление нового метода в EvaClient
+Для MCP-инструментов (обвязка над API-слоем) — см. `src/tools/AGENTS.md`.
+
+## Расширение EvaClient и типов API
 
 ### 1. Добавить типы в `src/types.ts`
 
@@ -157,7 +158,7 @@ export type BqlOperator = "==" | "!=" | "LIKE" | "NOT LIKE" | "ILIKE" | "NOT ILI
 Поле `priority` в задачах — целочисленное (`ChoiceInt`). API ожидает **число** (0-4), не строку.
 Передача `"high"` вместо `3` вызывает `pg: invalid input syntax for type integer`.
 
-Конвертация строк → числа: `mapPriority()` в `task.tools.ts` (экспортируется через `PRIORITY_MAP`).
+Конвертация строк → чисел: `mapPriority()` в `task.tools.ts` (экспортируется через `PRIORITY_MAP`).
 Обратный маппинг (число → название): `PRIORITY_NUM_TO_NAME` в `mappers.ts`.
 
 ### Статусы (CmfStatus)
@@ -271,7 +272,7 @@ const folders = await this.call<Array<{ id: string }>>(
 1. **Всегда указывай тип идентификатора жирным** в description: `**Код задачи**`, `**Код проекта**`, `**Логин**`, `**UUID**`
 2. **Всегда указывай пример** в том же формате: `(например DEV-000003)`
 3. **Всегда указывай где взять**: `— возьми из search_users`, `— возьми из get_statuses`
-4. **Используй канонический идентификатор** из таблицы в `copilot-instructions.md`
+4. **Используй канонический идентификатор** из таблицы в корневом `AGENTS.md`
 
 ### Шаблон description
 

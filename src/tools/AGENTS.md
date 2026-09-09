@@ -1,9 +1,10 @@
----
-description: "Use when: adding, editing, or debugging MCP tools (get_task, search_tasks, update_task, etc.). Covers Zod schema definition, toolDefs export, handleToolCall pattern, and Markdown formatter patterns."
-applyTo: "src/tools/"
----
+# Правила MCP-инструментов (`src/tools/`) — AGENTS.md
 
-# Добавление MCP-инструментов
+Правила для добавления, правки и отладки MCP-инструментов (get_task, search_tasks,
+update_task и др.). Распространяются на каталог `src/tools/`. Охватывают определение
+Zod-схем, экспорт `toolDefs`, паттерн `handleToolCall` и Markdown-форматтеры.
+
+Для API-слоя (EvaClient/типы/JSON-RPC/BQL) — см. `src/AGENTS.md`.
 
 ## Архитектура
 

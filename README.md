@@ -146,25 +146,39 @@ npm run build
 npm start
 ```
 
-## Подключение к VS Code Copilot
+## Подключение MCP-сервера
 
-Добавьте в `mcp.json` (в настройках VS Code):
+Сервер клиент-агностичен — это обычный stdio MCP-сервер, его регистрирует любой
+клиент, поддерживающий MCP (VS Code Copilot, Claude Code, Cursor и др.). В
+репозитории нет обвязки под конкретного вендора.
+
+Соберите сервер:
+
+```bash
+npm run build
+```
+
+И укажите в конфиге MCP-клиента stdio-команду на `dist/index.js`, например в
+`mcp.json` для VS Code Copilot:
 
 ```json
 {
   "servers": {
     "eva-mcp": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["tsx", "c:\\Users\\chebser\\Documents\\eva-mcp\\src\\index.ts"],
-      "env": {
-        "EVA_URL": "https://your-company.evateam.ru",
-        "EVA_TOKEN": "your-api-token"
-      }
+      "command": "node",
+      "args": ["/путь/до/eva-mcp/dist/index.js"]
     }
   }
 }
 ```
+
+Учётные данные сервер берёт из переменных окружения `EVA_URL` и `EVA_TOKEN`, а если
+их нет — из файла `.env` в корне пакета (рабочая папка может быть любой). Задавать
+их в конфиге клиента не нужно, если `.env` лежит рядом с пакетом.
+
+Инструкции для ИИ-агентов лежат в `AGENTS.md` (корень), `src/AGENTS.md`
+(API-слой) и `src/tools/AGENTS.md` (MCP-инструменты).
 
 ## Пример использования
 
@@ -182,7 +196,9 @@ eva-mcp/
 ├── tsconfig.json
 ├── .env.example
 ├── README.md
+├── AGENTS.md              # инструкции для ИИ-агентов (корневой, AGENTS.md-формат)
 └── src/
+    ├── AGENTS.md          # правила API-слоя: EvaClient, типы, JSON-RPC, BQL
     ├── index.ts              # Точка входа: MCP-сервер, регистрация инструментов
     ├── eva-client.ts         # HTTP-клиент для JSON-RPC API EvaProject (класс EvaClient)
     ├── types.ts              # TypeScript-интерфейсы (TaskInfo, CommentInfo, BqlFilter, ...)
@@ -192,6 +208,7 @@ eva-mcp/
     │   ├── comment-tree.ts       # Форматирование дерева комментариев
     │   └── markdown.ts          # Конвертация HTML ↔ Markdown
     ├── tools/
+    │   ├── AGENTS.md         # правила MCP-инструментов (Zod/toolDefs/handleToolCall)
     │   ├── task.tools.ts     # get_task, search_tasks, count_tasks, update_task, create_task
     │   ├── sprint.tools.ts   # get_sprint, search_sprints, create_sprint
     │   ├── user.tools.ts     # search_users, get_statuses
