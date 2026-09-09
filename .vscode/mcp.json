@@ -5,8 +5,7 @@
       "command": "node",
       "args": [
         "dist/index.js"
-      ],
-      "cwd": "c:\\Users\\chebser\\Documents\\eva-mcp"
+      ]
     }
   }
 }
