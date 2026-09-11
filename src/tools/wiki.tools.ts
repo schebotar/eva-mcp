@@ -35,15 +35,16 @@ export const wikiToolDefs = [
   {
     name: "search_docs",
     description:
-      "Поиск страниц wiki (EvaWiki). Фильтры: query — по названию, project — корневые страницы wiki проекта, " +
-      "parent — подстраницы документа (код DOC-XXXXXX). Нужен хотя бы один параметр. " +
+      "Поиск страниц wiki (EvaWiki). Фильтры: query — по названию, project — все страницы wiki проекта, " +
+      "parent — прямые подстраницы страницы (код DOC-XXXXXX) или, если передать код проекта, корневые " +
+      "страницы его wiki. Фильтры комбинируются, нужен хотя бы один. " +
       "Возвращает код, название, проект и дату изменения (без текста — текст отдаёт get_doc).",
     inputSchema: {
       type: "object" as const,
       properties: {
         query: { type: "string", description: "Подстрока в названии страницы, например 'регламент'" },
-        project: { type: "string", description: "Код проекта — вернёт корневые страницы его wiki" },
-        parent: { type: "string", description: "Код родительской страницы (DOC-XXXXXX) — вернёт её подстраницы" },
+        project: { type: "string", description: "Код проекта — вернёт все страницы его wiki" },
+        parent: { type: "string", description: "Код родительской страницы (DOC-XXXXXX) — вернёт её прямые подстраницы; код проекта — корневые страницы его wiki" },
         limit: { type: "number", description: "Максимум результатов (по умолчанию 50, максимум 200)" },
       },
       required: [],
@@ -155,28 +156,14 @@ export async function handleWikiToolCall(
     }
 
     const limit = params.limit ?? 50;
-    const baseFilters: BqlFilter[] = [];
-    if (params.query) baseFilters.push(["name", "ILIKE", `%${params.query}%`]);
 
-    let docs: DocInfo[];
-    if (params.parent) {
-      // Дети видны то через parent.code, то через tree_parent.code
-      // (индекс дерева обновляется с задержкой) — объединяем оба запроса
-      const [byParent, byTreeParent] = await Promise.all([
-        evaClient.listDocs([...baseFilters, ["parent.code", "==", params.parent]], [0, limit]).catch(() => [] as DocInfo[]),
-        evaClient.listDocs([...baseFilters, ["tree_parent.code", "==", params.parent]], [0, limit]).catch(() => [] as DocInfo[]),
-      ]);
-      const seen = new Set<string>();
-      docs = [...byParent, ...byTreeParent].filter((d) => {
-        if (seen.has(d.id)) return false;
-        seen.add(d.id);
-        return true;
-      });
-    } else {
-      const filters = [...baseFilters];
-      if (params.project) filters.push(["parent.code", "==", params.project]);
-      docs = await evaClient.listDocs(filters, [0, limit]);
-    }
+    // По parent фильтруем только через tree_parent: вложенная фильтрация по
+    // CmfDocument.parent запрещена на стороне API («Недопустимый тип поля»)
+    const filters: BqlFilter[] = [];
+    if (params.query) filters.push(["name", "ILIKE", `%${params.query}%`]);
+    if (params.parent) filters.push(["tree_parent.code", "==", params.parent]);
+    if (params.project) filters.push(["project.code", "==", params.project]);
+    const docs: DocInfo[] = await evaClient.listDocs(filters, [0, limit]);
 
     return { content: [{ type: "text", text: formatDocList(docs) }] };
   }

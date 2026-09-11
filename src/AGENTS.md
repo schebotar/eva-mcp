@@ -291,6 +291,15 @@ const folders = await this.call<Array<{ id: string }>>(
 - ❌ `["lists.code", "IN", [sprintCode]]` — не работает
 - ✅ Клиентская фильтрация: `tasks.filter(t => t.lists.some(l => l.code === sprintCode))`
 
+### parent в wiki-страницах (CmfDocument)
+- ❌ `["parent.code", "==", code]` — API отвечает `-32001`: «Недопустимый тип поля для вложенной
+  фильтрации CmfDocument.parent. Вложенная фильтрация возможна только для CmfRelation и
+  CmfGenericRelation». Поле `parent` при этом нормально **читается** в `fields` — не работает
+  именно фильтрация.
+- ✅ `["tree_parent.code", "==", code]` — иерархия: код страницы даёт её прямых детей,
+  код проекта — корневые страницы его wiki.
+- ✅ `["project.code", "==", code]` — все страницы проекта на любой глубине.
+
 ### Вывод
 Для надёжной фильтрации по проекту/спринту используй клиентскую фильтрацию после получения задач.
 
