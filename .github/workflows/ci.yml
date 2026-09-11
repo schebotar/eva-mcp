@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Зависимости
+        run: npm ci
+
+      - name: Типы и состав инструментов
+        run: npm run check
+
+      - name: Заглушка .env для smoke
+        run: printf 'EVA_URL=https://example.invalid\nEVA_TOKEN=dummy\n' > .env
+
+      - name: Старт сервера по stdio
+        run: npm run smoke
