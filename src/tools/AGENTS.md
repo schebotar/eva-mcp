@@ -80,22 +80,28 @@ function formatResult(data: SomeType): string {
 }
 ```
 
-## Полный список инструментов (32)
+## Полный список инструментов (27)
+
+В сборке 27 инструментов из 9 активных модулей (см. `ALL_TOOL_DEFS` в `src/index.ts`):
 
 | Группа | Инструменты | Файл |
 |--------|------------|------|
 | Задачи | `get_task`, `search_tasks`, `count_tasks`, `update_task`, `create_task` | `task.tools.ts` |
-| Проекты | `get_project`, `search_projects` | `project.tools.ts` |
-| Пользователи | `search_users`, `get_statuses` | `user.tools.ts` |
-| Связи | `get_linked_tasks`, `get_referencing_tasks`, `get_linked_tasks_batch` | `linked.tools.ts` |
-| Вложения | `get_attachments` | `attachment.tools.ts` |
+| Спринты | `get_sprint`, `search_sprints`, `create_sprint` | `sprint.tools.ts` |
+| Связи | `get_linked_tasks`, `get_referencing_tasks`, `get_linked_tasks_batch`, `link_tasks`, `unlink_tasks`, `list_relation_types`, `link_relation`, `unlink_relation` | `linked.tools.ts` |
 | Журнал работ | `get_task_worklog`, `log_work` | `worklog.tools.ts` |
-| Подписчики | `get_task_followers` | `follower.tools.ts` |
 | История | `get_task_history` | `history.tools.ts` |
 | Комментарии | `add_comment` | `comment.tools.ts` |
-| Спринты | `get_sprint`, `search_sprints`, `create_sprint`, `update_sprint`, `delete_sprint` | `sprint.tools.ts` |
-| Бэклог | `get_backlog`, `add_tasks_to_sprint`, `remove_tasks_from_sprint`, `move_tasks_to_sprint`, `get_sprint_summary` | `backlog.tools.ts` |
-| Доски | `get_sprint_board`, `get_my_tasks`, `get_daily_standup`, `identify_blockers` | `board.tools.ts` |
+| Требования | `get_requirement`, `search_requirements`, `update_requirement` | `requirement.tools.ts` |
+| Пользователи | `search_users`, `get_statuses` | `user.tools.ts` |
+| Проекты | `get_project`, `search_projects` | `project.tools.ts` |
+
+Не подключены в `src/index.ts` (код есть, сервер инструменты не отдаёт): `attachment.tools.ts`,
+`follower.tools.ts`, `metrics.tools.ts`, `reports.tools.ts`, `epic.tools.ts`; в `sprint.tools.ts`
+закомментированы `update_sprint` и `delete_sprint`. Числа и причины — в корневом `AGENTS.md`,
+раздел «Состояние сборки».
+
+Модулей `board.tools.ts` и `backlog.tools.ts` в репозитории больше нет.
 
 ## Соглашения
 

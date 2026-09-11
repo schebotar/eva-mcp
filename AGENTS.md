@@ -5,14 +5,27 @@ MCP-сервер для работы с системой управления п
 работать со спринтами, требованиями, журналом работ и искать
 проекты/пользователей.
 
-Этот файл — инструкции для ИИ-агентов в открытом формате [AGENTS.md](https://agents.md/):
-он читается из корня репозитория любым поддерживающим агентом (VS Code Copilot,
-Claude Code, Codex, Cursor и др.). Детальные правила по слоям кода лежат во
-вложенных файлах и применяются при правке соответствующих поддеревьев (ближайший
-`AGENTS.md` к редактируемому файлу имеет приоритет):
+Этот файл — правила для ИИ-агентов в открытом формате [AGENTS.md](https://agents.md/).
+Правила лежат по слоям, детали — во вложенных файлах:
 
-- `src/AGENTS.md` — добавление API-методов в `EvaClient`, типов, JSON-RPC 2.2, BQL.
-- `src/tools/AGENTS.md` — добавление и правка MCP-инструментов.
+- `AGENTS.md` (этот файл) — работа с EvaTeam через инструменты, архитектура, соглашения, идентификаторы.
+- `src/AGENTS.md` — API-слой: `EvaClient`, типы, JSON-RPC 2.2, BQL.
+- `src/tools/AGENTS.md` — MCP-инструменты: Zod-схемы, `toolDefs`, `handleToolCall`, форматтеры.
+
+### Как читаются правила
+
+| Клиент | Что читает автоматически | Что нужно |
+|--------|--------------------------|-----------|
+| VS Code Copilot | корневой `AGENTS.md` (`chat.useAgentsMdFile`, по умолчанию включена) | вложенные файлы — `chat.useNestedAgentsMdFiles` (экспериментальная; включена в `.vscode/settings.json`) |
+| Claude Code | `CLAUDE.md` | ничего: это загрузчик из трёх строк — `@AGENTS.md`, `@src/AGENTS.md`, `@src/tools/AGENTS.md` |
+| Codex, Cursor и др. | корневой `AGENTS.md`, если формат поддерживается | вложенные — по возможностям клиента |
+
+`CLAUDE.md` — не второй источник правил, а загрузчик без собственного текста.
+Загрузчиков держим минимум: файл ≤5 строк, только импорт/ссылка; список — в этой таблице.
+
+**Перед правкой `src/**` прочитай `src/AGENTS.md`; перед правкой `src/tools/**` — дополнительно
+`src/tools/AGENTS.md`.** Автоматическому чтению вложенных файлов не доверяй: в VS Code это
+экспериментальная настройка, часть клиентов вложенность не поддерживает вовсе.
 
 ## Работа с EvaTeam через инструменты
 
@@ -36,17 +49,17 @@ eva-mcp в сессии нет — предложи подключить сер�
 - **Списание времени** → `log_work`; история статусов → `get_task_history`.
 - **Требования** → `get_requirement`, `search_requirements`; правка текста —
   `update_requirement` (уходит в черновик и публикуется).
-- **Итоги в wiki** → `search_docs`, `get_doc`, `create_doc`, `update_doc`,
-  если модуль wiki подключён в этой сборке сервера.
+- **Итоги в wiki** — инструменты wiki (`search_docs`, `get_doc`, `create_doc`,
+  `update_doc`) в этой сборке не подключены.
 
 ### Правила работы
 
-- **Идентификаторы — коды, а не имена**: задачи `ABC-123`, спринты `SPR-XXXXXX`,
-  документы `DOC-XXXXXX`, проекты — slug, пользователи — логин (email).
+- **Идентификаторы — коды, а не имена**: задачи `ABC-123`, спринты `SPR-НОМЕР`,
+  проекты — slug, пользователи — логин (email).
   `name` не уникален и идентификатором не является.
-- **Закрытые спринты архивируются** вместе со своими задачами. Если у
-  `search_sprints` и `search_tasks` есть параметр `include_archived`, без него
-  закрытый спринт не найдётся, а состав его вернётся неполным — молча.
+- **Закрытые спринты архивируются** вместе со своими задачами и в текущей сборке
+  не видны: у `search_sprints`/`search_tasks` ещё нет параметра `include_archived`,
+  поэтому состав закрытого спринта вернётся неполным — молча.
 - **Перед записью уточняй у пользователя**, если задача или проект выбраны
   по догадке: `create_task`, `update_task`, `log_work` меняют живую систему.
 - **Тестовые объекты** создавай только в тестовом проекте, помечай «можно
@@ -55,7 +68,8 @@ eva-mcp в сессии нет — предложи подключить сер�
   неочевидных ловушек (отказ приходит с HTTP 200 в поле `abort`, неизвестные
   kwargs игнорируются молча и сбрасывают `limit`, у `get` и `update` разные
   конвенции args/kwargs). Вместо этого добавь инструмент в eva-mcp — правила:
-  `src/AGENTS.md` и `src/tools/AGENTS.md`.
+  `src/AGENTS.md` и `src/tools/AGENTS.md`. Отказ в поле `abort` клиент пока не
+  отличает от успеха: приходит `result: null`, а причина — в `abort`.
 
 ## Разработка сервера
 
@@ -69,6 +83,26 @@ eva-mcp в сессии нет — предложи подключить сер�
 
 Перед добавлением нового JSON-RPC метода или поля в `TaskUpdateFields` — проверь
 документацию API на наличие этого метода/поля и его актуальную сигнатуру.
+
+### Состояние сборки
+
+Инструментов сервер отдаёт **27** (9 активных модулей в `src/index.ts`). Ещё 5 модулей
+закомментированы в `src/index.ts` — код лежит в `src/tools/`, но сервер этих инструментов
+не отдаёт:
+
+| Модуль | Инструменты | Статус |
+|--------|-------------|--------|
+| `attachment.tools.ts` | `get_attachments` | выключен |
+| `follower.tools.ts` | `get_task_followers` | выключен |
+| `metrics.tools.ts` | `get_burndown_data`, `get_velocity`, `get_cycle_time`, `get_cumulative_flow` | выключен |
+| `reports.tools.ts` | `get_sprint_review`, `get_sprint_retrospective`, `get_team_workload`, `get_project_health` | выключен |
+| `epic.tools.ts` | `get_epic_summary`, `get_roadmap` | выключен |
+
+В `src/tools/sprint.tools.ts` также закомментированы `update_sprint` и `delete_sprint` —
+в сборке их нет. Модулей `board.tools.ts` и `backlog.tools.ts` в репозитории больше нет.
+
+Если инструмент «есть в коде, но агент его не вызывает» — сначала проверь эту таблицу
+и список `ALL_TOOL_DEFS` в `src/index.ts`.
 
 ### Стек
 
@@ -101,13 +135,16 @@ src/
 │   └── markdown.ts          # Конвертация HTML ↔ Markdown
 ├── tools/
 │   ├── task.tools.ts     # get_task, search_tasks, count_tasks, update_task, create_task
-│   ├── board.tools.ts    # get_sprint_board, get_my_tasks, identify_blockers
-│   ├── sprint.tools.ts   # search_sprints, get_sprint, create_sprint, update_sprint
-│   ├── linked.tools.ts   # get_linked_tasks, get_referencing_tasks, get_linked_tasks_batch
+│   ├── sprint.tools.ts   # get_sprint, search_sprints, create_sprint
+│   ├── linked.tools.ts   # get_linked_tasks, get_referencing_tasks, get_linked_tasks_batch,
+│   │                     #   link_tasks, unlink_tasks, list_relation_types, link_relation, unlink_relation
 │   ├── worklog.tools.ts  # get_task_worklog, log_work
+│   ├── history.tools.ts  # get_task_history
+│   ├── comment.tools.ts  # add_comment
+│   ├── requirement.tools.ts # get_requirement, search_requirements, update_requirement
 │   ├── user.tools.ts     # search_users, get_statuses
 │   ├── project.tools.ts  # search_projects, get_project
-│   └── ...
+│   └── (выключены: attachment, follower, metrics, reports, epic — см. «Состояние сборки»)
 └── metrics/              # Scrum-метрики (burndown, velocity, cycle-time, cumulative-flow)
 ```
 
@@ -234,6 +271,7 @@ src/
 - При добавлении нового инструмента: Zod-схема → регистрация в `ListToolsRequestSchema` → case в `CallToolRequestSchema` (детали — в `src/tools/AGENTS.md`)
 - Не дублируй код форматирования — выноси в отдельную функцию-форматтер
 - Комментарии в коде — на русском языке
+- Правила для агентов живут только в `AGENTS.md` (+ `CLAUDE.md`-загрузчик). Новые файлы правил под конкретный вендор (`GEMINI.md`, `.cursor/rules`, `.github/instructions`) не заводить
 - Все поля с датами могут быть null — всегда используй `?? "—"` для отображения
 - **После `npm run build` напоминай пользователю перезапустить MCP-сервер** (в VS Code: `MCP: Restart Server` или через `mcp.json`). Без перезапуска сервер работает со старой скомпилированной версией — изменения не применятся и тесты будут неактуальны.
 - Для тестирования используй только проект mcp-test https://rhsolutions.evateam.ru/project/Project/mcp-test#mcp-test
