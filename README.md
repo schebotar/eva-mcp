@@ -146,6 +146,18 @@ npm run build
 npm start
 ```
 
+## Проверка
+
+```bash
+npm run check    # типы + состав инструментов сверяется с документацией
+npm run smoke    # сборка + старт сервера по stdio: число инструментов и дубли
+npm run probe -- --list                                          # инструменты на живом сервере
+npm run probe -- --tool get_task --args '{"code":"DEV-000003"}'   # живой вызов
+```
+
+`check` и `smoke` обязательны перед PR. `probe` требует `.env` с `EVA_URL` и `EVA_TOKEN` и ходит
+на живой инстанс: читать можно на любом проекте, писать — только в тестовый.
+
 ## Подключение MCP-сервера
 
 Сервер клиент-агностичен — это обычный stdio MCP-сервер, его регистрирует любой
@@ -206,6 +218,7 @@ eva-mcp/
 ├── README.md
 ├── AGENTS.md              # правила для ИИ-агентов (корневой, формат AGENTS.md)
 ├── CLAUDE.md              # загрузчик для Claude Code: @AGENTS.md + вложенные
+├── scripts/               # check-tools.mjs, smoke-mcp.mjs, mcp-probe.mjs, lib/
 └── src/
     ├── AGENTS.md          # правила API-слоя: EvaClient, типы, JSON-RPC, BQL
     ├── index.ts              # Точка входа: MCP-сервер, регистрация инструментов
