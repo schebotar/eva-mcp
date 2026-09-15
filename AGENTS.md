@@ -138,7 +138,7 @@ a closed pull request»). Базу оставляем до мержа верхн
 
 ### Состояние сборки
 
-Инструментов сервер отдаёт **27** (9 активных модулей в `src/index.ts`). Ещё 5 модулей
+Инструментов сервер отдаёт **35** (11 активных модулей в `src/index.ts`). Ещё 3 модуля
 закомментированы в `src/index.ts` — код лежит в `src/tools/`, но сервер этих инструментов
 не отдаёт:
 
@@ -146,8 +146,6 @@ a closed pull request»). Базу оставляем до мержа верхн
 |--------|-------------|--------|
 | `attachment.tools.ts` | `get_attachments` | выключен |
 | `follower.tools.ts` | `get_task_followers` | выключен |
-| `metrics.tools.ts` | `get_burndown_data`, `get_velocity`, `get_cycle_time`, `get_cumulative_flow` | выключен |
-| `reports.tools.ts` | `get_sprint_review`, `get_sprint_retrospective`, `get_team_workload`, `get_project_health` | выключен |
 | `epic.tools.ts` | `get_epic_summary`, `get_roadmap` | выключен |
 
 В `src/tools/sprint.tools.ts` также закомментированы `update_sprint` и `delete_sprint` —

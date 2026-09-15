@@ -80,9 +80,9 @@ function formatResult(data: SomeType): string {
 }
 ```
 
-## Полный список инструментов (27)
+## Полный список инструментов (35)
 
-В сборке 27 инструментов из 9 активных модулей (см. `ALL_TOOL_DEFS` в `src/index.ts`):
+В сборке 35 инструментов из 11 активных модулей (см. `ALL_TOOL_DEFS` в `src/index.ts`):
 
 | Группа | Инструменты | Файл |
 |--------|------------|------|
@@ -95,9 +95,11 @@ function formatResult(data: SomeType): string {
 | Требования | `get_requirement`, `search_requirements`, `update_requirement` | `requirement.tools.ts` |
 | Пользователи | `search_users`, `get_statuses` | `user.tools.ts` |
 | Проекты | `get_project`, `search_projects` | `project.tools.ts` |
+| Метрики | `get_burndown_data`, `get_velocity`, `get_cycle_time`, `get_cumulative_flow` | `metrics.tools.ts` |
+| Отчёты | `get_sprint_review`, `get_sprint_retrospective`, `get_team_workload`, `get_project_health` | `reports.tools.ts` |
 
 Не подключены в `src/index.ts` (код есть, сервер инструменты не отдаёт): `attachment.tools.ts`,
-`follower.tools.ts`, `metrics.tools.ts`, `reports.tools.ts`, `epic.tools.ts`; в `sprint.tools.ts`
+`follower.tools.ts`, `epic.tools.ts`; в `sprint.tools.ts`
 закомментированы `update_sprint` и `delete_sprint`. Числа и причины — в корневом `AGENTS.md`,
 раздел «Состояние сборки».
 
