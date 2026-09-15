@@ -1,6 +1,8 @@
+#!/usr/bin/env node
 import { config as loadEnv } from "dotenv";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -26,14 +28,22 @@ import { requirementToolDefs, handleRequirementToolCall } from "./tools/requirem
 // import { epicToolDefs, handleEpicToolCall } from "./tools/epic.tools.js";
 // import { reportsToolDefs, handleReportsToolCall } from "./tools/reports.tools.js";
 
-// ── Переменные окружения ───────────────────────────────────────
+// ── Пакет и переменные окружения ───────────────────────────────
+
+/** Корень пакета: на уровень выше собранного dist/ (или src/ при запуске через tsx) */
+const PKG_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+/** Версия — из package.json, чтобы не разъезжаться с ним */
+const { version: VERSION } = JSON.parse(
+  readFileSync(join(PKG_ROOT, "package.json"), "utf8")
+) as { version: string };
 
 // .env из рабочей папки — при запуске из репозитория.
 // Плюс .env рядом с самим пакетом: сервер можно запускать из любого места
 // (npm-глобально, другим MCP-клиентом) — тогда рабочая папка чужая.
 // Уже заданные переменные окружения приоритетнее — dotenv их не перезаписывает.
 loadEnv();
-loadEnv({ path: join(dirname(fileURLToPath(import.meta.url)), "..", ".env") });
+loadEnv({ path: join(PKG_ROOT, ".env") });
 
 // ── Конфигурация ───────────────────────────────────────────────
 
@@ -95,7 +105,7 @@ const ALL_HANDLERS: ToolHandler[] = [
 const server = new Server(
   {
     name: "eva-mcp",
-    version: "0.7.0",
+    version: VERSION,
   },
   {
     capabilities: {
