@@ -189,6 +189,7 @@ src/
 ├── helpers/
 │   ├── build-task-filter.ts  # Построение BQL-фильтров из аргументов инструментов
 │   ├── comment-tree.ts       # Форматирование дерева комментариев
+│   ├── scoped-tasks.ts       # Задачи в разрезе проекта/спринта для метрик и отчётов
 │   └── markdown.ts          # Конвертация HTML ↔ Markdown
 ├── tools/
 │   ├── task.tools.ts     # get_task, search_tasks, count_tasks, update_task, create_task
