@@ -1103,6 +1103,9 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["**"],
     });
+    if (!raw) {
+      throw new Error(`Страница с кодом "${code}" не найдена. Проверьте код через search_docs.`);
+    }
     return mapDoc(raw);
   }
 
@@ -1136,6 +1139,9 @@ export class EvaClient {
         filter: ["code", "==", parentDocCode],
         fields: ["id"],
       });
+      if (!parentDoc) {
+        throw new Error(`Страница с кодом "${parentDocCode}" не найдена. Проверьте код через search_docs.`);
+      }
       parentId = parentDoc.id;
     }
 
@@ -1164,6 +1170,9 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["id"],
     });
+    if (!resolved) {
+      throw new Error(`Страница с кодом "${code}" не найдена. Проверьте код через search_docs.`);
+    }
 
     // ID — в args[0]; запись напрямую в text API отклоняет
     await this.call<unknown>("CmfDocument.update", { text_draft: textHtml }, { args: [resolved.id] });
