@@ -3,6 +3,7 @@ import type { EvaClient } from "../eva-client.js";
 import type { TaskInfo } from "../types.js";
 import { buildTaskFilter } from "../helpers/build-task-filter.js";
 import { formatComments } from "../helpers/comment-tree.js";
+import { buildSlice } from "../helpers/limit-window.js";
 import { mdToHtml } from "../helpers/markdown.js";// ── Приоритеты: маппинг имён в числа (ChoiceInt) ──────────────
 
 const PRIORITY_MAP: Record<string, number> = {
@@ -222,7 +223,11 @@ function formatTask(task: TaskInfo): string {
 
 function formatTaskList(tasks: TaskInfo[], total?: number): string {
   if (tasks.length === 0) {
-    return "Задачи не найдены.";
+    // Совпадения могут быть, а окно запроса — не вместить их: молчать об этом нельзя
+    return total !== undefined && total > 0
+      ? `Задачи не найдены в окне запроса, всего по фильтру: **${total}**. ` +
+        "`limit` задаёт окно, а не число результатов — увеличьте его или уберите."
+      : "Задачи не найдены.";
   }
 
   const header =
@@ -260,6 +265,13 @@ function formatTaskList(tasks: TaskInfo[], total?: number): string {
         `| \`${t.code}\` | ${name} | ${t.statusCode ?? t.statusName ?? "—"} | ${prio} | ${resp} |`
       );
     }
+  }
+
+  if (total !== undefined && total > tasks.length) {
+    lines.push(
+      "",
+      `> Показано ${tasks.length} из ${total}: \`limit\` задаёт окно запроса, а не число результатов.`
+    );
   }
 
   return lines.join("\n");
@@ -321,8 +333,13 @@ export const taskToolDefs = [
             "Включить архивные задачи. Нужно для состава закрытых спринтов: при архивации спринта " +
             "его задачи тоже уходят в архив и по умолчанию не возвращаются. По умолчанию false",
         },
-        limit: { type: "number", description: "Максимальное количество результатов" },
-        offset: { type: "number", description: "Смещение для пагинации" },
+        limit: {
+          type: "number",
+          description:
+            "Размер окна запроса: сколько записей запросить. Это не число результатов — " +
+            "часть совпадений может в окно не попасть, точное число даёт `count_tasks`",
+        },
+        offset: { type: "number", description: "Сдвиг окна: пропустить первые N записей" },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -476,8 +493,7 @@ export async function handleTaskToolCall(
         }
       }
 
-      const slice: [number, number] | undefined =
-        params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
+      const slice = buildSlice(params);
 
       const includeArchived = include_archived === true;
 

@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { EvaClient } from "../eva-client.js";
 import type { RequirementInfo } from "../types.js";
 import type { BqlFilter } from "../types.js";
+import { buildSlice } from "../helpers/limit-window.js";
 import { mdToHtml } from "../helpers/markdown.js";
 
 // ── Приоритеты: маппинг имён в числа (ChoiceInt) ──────────────
@@ -231,8 +232,13 @@ export const requirementToolDefs = [
         project: { type: "string", description: "Фильтр по проекту. **Код проекта** (например `EvaReq`) — возьми из `search_projects`" },
         priority: { type: "string", description: "Фильтр по приоритету: `low`, `normal`, `high`, `critical` или 1-4" },
         query: { type: "string", description: "Текстовый поиск по **названию** требования" },
-        limit: { type: "number", description: "Максимальное количество результатов" },
-        offset: { type: "number", description: "Смещение для пагинации" },
+        limit: {
+          type: "number",
+          description:
+            "Размер окна запроса: сколько записей запросить. Это не число результатов — " +
+            "часть совпадений может в окно не попасть",
+        },
+        offset: { type: "number", description: "Сдвиг окна: пропустить первые N записей" },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -320,8 +326,7 @@ export async function handleRequirementToolCall(
       if (params.query) filterArgs.query = params.query;
 
       const filters = buildRequirementFilter(filterArgs);
-      const slice: [number, number] | undefined =
-        params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
+      const slice = buildSlice(params);
 
       const reqs = await evaClient.listRequirements({
         filter: filters.length > 0 ? filters : undefined,
