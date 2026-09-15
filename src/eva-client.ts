@@ -41,6 +41,17 @@ export class EvaClient {
     });
   }
 
+  /**
+   * `get` по несуществующему коду возвращает HTTP 200 с `result: null` и пустым `abort`:
+   * это не отказ валидации (его различает `call()`), а «ничего не найдено». Отличить
+   * может только вызывающий — у него есть код и известно, каким инструментом искать.
+   */
+  private assertFound(value: unknown, message: string): void {
+    if (value === null || value === undefined) {
+      throw new Error(message);
+    }
+  }
+
   /** Универсальный вызов JSON-RPC метода */
   private async call<T>(
     method: string,
@@ -99,6 +110,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["***", "priority_name"],
     });
+    this.assertFound(raw, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
 
     return mapTask(raw);
   }
@@ -116,6 +128,7 @@ export class EvaClient {
         "comments.tree_parent",
       ],
     });
+    this.assertFound(raw, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
 
     const comments = raw.comments ?? [];
     return comments.map((c) => mapComment(c));
@@ -137,6 +150,7 @@ export class EvaClient {
         "attachments.**",
       ],
     });
+    this.assertFound(raw, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
 
     const task = mapTask(raw);
     const allComments = (raw.comments ?? []).map((c) => mapComment(c));
@@ -204,6 +218,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["id"],
     });
+    this.assertFound(resolved, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
 
     // ID — как args[0], поля обновления — в kwargs
     const raw = await this.call<EvaTaskRaw>(
@@ -257,6 +272,7 @@ export class EvaClient {
         "parent_task.code",
       ],
     });
+    this.assertFound(raw, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
 
     return {
       depended: (raw.depended_tasks ?? []).map((t) => t.code).filter(Boolean),
@@ -583,6 +599,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["**"],
     });
+    this.assertFound(raw, `Спринт с кодом "${code}" не найден. Проверьте код через search_sprints.`);
     return mapSprint(raw);
   }
 
@@ -653,6 +670,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["id"],
     });
+    this.assertFound(resolved, `Спринт с кодом "${code}" не найден. Проверьте код через search_sprints.`);
 
     await this.call<EvaSprintRaw>(
       "CmfList.update",
@@ -669,6 +687,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["id"],
     });
+    this.assertFound(resolved, `Спринт с кодом "${code}" не найден. Проверьте код через search_sprints.`);
     await this.call<void>("CmfList.delete", {}, { filter: [["id", "==", resolved.id]] });
   }
 
@@ -812,6 +831,7 @@ export class EvaClient {
         "out_tasks.relation_type.code",
       ],
     });
+    this.assertFound(raw, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
 
     const mapOrNull = (r: unknown): TaskInfo | null =>
       r ? mapTask(r as EvaTaskRaw) : null;
@@ -988,6 +1008,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["attachments.**"],
     });
+    this.assertFound(raw, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
     return (raw.attachments ?? []).map((a) => mapAttachment(a));
   }
 
@@ -998,6 +1019,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["id"],
     });
+    this.assertFound(resolved, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
 
     const result = await this.call<WorklogEntryRaw[]>("CmfTimeTrackerHistory.list", {
       fields: ["**"],
@@ -1014,6 +1036,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["followers.**"],
     });
+    this.assertFound(raw, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
     return (raw.followers ?? []).map((f) => mapPerson(f));
   }
 
@@ -1060,6 +1083,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["***", "priority_name"],
     });
+    this.assertFound(raw, `Требование с кодом "${code}" не найдено. Проверьте код через search_requirements.`);
     return mapRequirement(raw);
   }
 
@@ -1086,6 +1110,7 @@ export class EvaClient {
       filter: ["code", "==", code],
       fields: ["id"],
     });
+    this.assertFound(resolved, `Требование с кодом "${code}" не найдено. Проверьте код через search_requirements.`);
 
     // ID — как args[0], поля обновления — в kwargs
     await this.call<unknown>("CmfReq.update", { ...fields }, { args: [resolved.id] });
@@ -1105,6 +1130,7 @@ export class EvaClient {
       filter: ["code", "==", taskCode],
       fields: ["id"],
     });
+    this.assertFound(resolved, `Задача с кодом "${taskCode}" не найдена. Проверьте код через search_tasks.`);
 
     await this.call<unknown>(
       "CmfTask.timetracker_change_time",
