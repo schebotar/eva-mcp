@@ -80,9 +80,9 @@ function formatResult(data: SomeType): string {
 }
 ```
 
-## Полный список инструментов (27)
+## Полный список инструментов (31)
 
-В сборке 27 инструментов из 9 активных модулей (см. `ALL_TOOL_DEFS` в `src/index.ts`):
+В сборке 31 инструмент из 10 активных модулей (см. `ALL_TOOL_DEFS` в `src/index.ts`):
 
 | Группа | Инструменты | Файл |
 |--------|------------|------|
@@ -95,6 +95,7 @@ function formatResult(data: SomeType): string {
 | Требования | `get_requirement`, `search_requirements`, `update_requirement` | `requirement.tools.ts` |
 | Пользователи | `search_users`, `get_statuses` | `user.tools.ts` |
 | Проекты | `get_project`, `search_projects` | `project.tools.ts` |
+| Wiki | `search_docs`, `get_doc`, `create_doc`, `update_doc` | `wiki.tools.ts` |
 
 Не подключены в `src/index.ts` (код есть, сервер инструменты не отдаёт): `attachment.tools.ts`,
 `follower.tools.ts`, `metrics.tools.ts`, `reports.tools.ts`, `epic.tools.ts`; в `sprint.tools.ts`
