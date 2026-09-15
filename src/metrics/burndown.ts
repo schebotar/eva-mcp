@@ -1,5 +1,6 @@
 import type { EvaClient } from "../eva-client.js";
 import type { TaskInfo } from "../types.js";
+import { fetchScopedTasks } from "../helpers/scoped-tasks.js";
 
 export interface BurndownPoint {
   date: string;
@@ -32,11 +33,9 @@ export async function computeBurndown(
   sprintCode: string,
   projectCode: string
 ): Promise<BurndownResult> {
-  // Получаем все задачи спринта (клиентская фильтрация)
-  const allTasks = await evaClient.listTasks();
-  const tasks = allTasks.filter((t) =>
-    t.lists.some((l) => l.code === sprintCode || l.id === sprintCode)
-  );
+  // Задачи спринта — серверной фильтрацией, с архивом (у закрытого спринта
+  // задачи архивируются вместе с ним)
+  const tasks = await fetchScopedTasks(evaClient, { sprintCode });
 
   if (tasks.length === 0) {
     return { points: [], totalTasks: 0, completedTasks: 0, remainingTasks: 0, trend: "on_track" };

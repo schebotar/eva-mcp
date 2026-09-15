@@ -1,5 +1,6 @@
 import type { EvaClient } from "../eva-client.js";
 import type { TaskInfo } from "../types.js";
+import { fetchScopedTasks } from "../helpers/scoped-tasks.js";
 
 export interface CycleTimeResult {
   averageHours: number;
@@ -29,21 +30,15 @@ export async function computeCycleTime(
   sprintCode?: string,
   limit: number = 50
 ): Promise<CycleTimeResult> {
-  const allTasks = await evaClient.listTasks();
-  let tasks = allTasks.filter((t) =>
-    isClosed(t.statusName) && t.createdAt && t.statusClosedAt
+  // Cycle time считается по закрытым задачам, то есть по истории: архив нужен
+  const scoped = await fetchScopedTasks(evaClient, {
+    projectCode,
+    sprintCode,
+    includeArchived: true,
+  });
+  const tasks = scoped.filter(
+    (t) => isClosed(t.statusName) && t.createdAt && t.statusClosedAt
   );
-
-  if (projectCode) {
-    // Клиентская фильтрация по проекту
-    tasks = tasks.filter((t) => t.projectCode === projectCode);
-  }
-
-  if (sprintCode) {
-    tasks = tasks.filter((t) =>
-      t.lists.some((l) => l.code === sprintCode || l.id === sprintCode)
-    );
-  }
 
   // Вычисляем cycle time в часах
   const withHours = tasks
