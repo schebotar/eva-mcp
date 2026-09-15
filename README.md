@@ -240,6 +240,8 @@ eva-mcp/
 ├── README.md
 ├── AGENTS.md              # правила для ИИ-агентов (корневой, формат AGENTS.md)
 ├── CLAUDE.md              # загрузчик для Claude Code: @AGENTS.md + вложенные
+├── docs/
+│   └── oas_evateam_v1_9_22.json  # OpenAPI-спецификация EvaTeam API, 69 эндпоинтов
 ├── scripts/               # check-tools.mjs, smoke-mcp.mjs, mcp-probe.mjs, lib/
 └── src/
     ├── AGENTS.md          # правила API-слоя: EvaClient, типы, JSON-RPC, BQL
