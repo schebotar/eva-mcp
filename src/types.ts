@@ -279,7 +279,7 @@ export type BqlFilter = [string, BqlOperator, unknown] | ["OR", ...BqlFilter[]] 
 export interface TaskListParams {
   filter?: BqlFilter | BqlFilter[];
   fields?: string[];
-  slice?: [number, number]; // [offset, limit]
+  slice?: [number, number]; // [от, до) — диапазон, а не пара «сдвиг, количество»
   /** Включить архивные задачи (задачи закрытых спринтов архивируются вместе с ними) */
   includeArchived?: boolean;
 }

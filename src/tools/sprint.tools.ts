@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { EvaClient } from "../eva-client.js";
 import type { SprintInfo } from "../types.js";
+import { buildSlice } from "../helpers/limit-window.js";
 
 // ── Zod-схемы ──────────────────────────────────────────────────
 
@@ -105,7 +106,11 @@ function formatSprint(sprint: SprintInfo): string {
 
 function formatSprintList(sprints: SprintInfo[], total?: number): string {
   if (sprints.length === 0) {
-    return "Спринты не найдены.";
+    // Совпадения могут быть, а окно запроса — не вместить их: молчать об этом нельзя
+    return total !== undefined && total > 0
+      ? `Спринты не найдены в окне запроса, всего по фильтру: **${total}**. ` +
+        "`limit` задаёт окно, а не число результатов — увеличьте его или уберите."
+      : "Спринты не найдены.";
   }
 
   const header =
@@ -136,6 +141,13 @@ function formatSprintList(sprints: SprintInfo[], total?: number): string {
 
   if (hasArchived) {
     lines.push("", ARCHIVED_COUNTS_NOTE);
+  }
+
+  if (total !== undefined && total > sprints.length) {
+    lines.push(
+      "",
+      `> Показано ${sprints.length} из ${total}: \`limit\` задаёт окно запроса, а не число результатов.`
+    );
   }
 
   return lines.join("\n");
@@ -177,8 +189,13 @@ export const sprintToolDefs = [
             "Включить архивные спринты (закрытые спринты уходят в архив и по умолчанию не показываются). " +
             "По умолчанию false",
         },
-        limit: { type: "number", description: "Максимальное количество результатов" },
-        offset: { type: "number", description: "Смещение для пагинации" },
+        limit: {
+          type: "number",
+          description:
+            "Размер окна запроса: сколько записей запросить. Это не число результатов — " +
+            "часть совпадений может в окно не попасть, точное число даёт `count_sprints`",
+        },
+        offset: { type: "number", description: "Сдвиг окна: пропустить первые N записей" },
       },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -266,8 +283,7 @@ export async function handleSprintToolCall(
 
       const bqlFilters = buildSprintFilter(filterArgs);
 
-      const slice: [number, number] | undefined =
-        params.limit !== undefined ? [params.offset ?? 0, params.limit] : undefined;
+      const slice = buildSlice(params);
 
       const includeArchived = params.include_archived ?? false;
 
