@@ -1,0 +1,120 @@
+# Публикация релиза: тег vX.Y.Z → пакет в npm + страница релиза на GitHub.
+#
+# Триггер только по тегу: версию в npm не перезаписать, поэтому «на каждый мерж» не годится.
+# Перед публикацией гоняются те же проверки, что в ci.yml, плюс две страховки: тег обязан
+# стоять на master и совпадать с версией в package.json — публикация необратима, дешевле
+# остановиться до неё.
+#
+# Аутентификация в npm — Trusted Publishing (OIDC), долгоживущего токена в secrets нет.
+# Настраивается один раз на npmjs.com: для пакета `eva-mcp` добавляется доверенный издатель —
+# репозиторий `schebotar/eva-mcp`, workflow `release.yml`. До первой ручной публикации
+# (issue #27) шаг `npm publish` упадёт на аутентификации — это ожидаемо, workflow до неё
+# запускать не нужно.
+#
+# Запасной путь, если trusted publishing окажется недоступен: создать granular-токен на один
+# пакет, положить в секрет `NPM_TOKEN` и добавить в шаг публикации
+# `env: NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` — с заметкой о ротации токена.
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write # создание GitHub Release
+  id-token: write # OIDC для Trusted Publishing
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # нужна история: проверяем, что тег на master
+
+      - name: Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - name: Тег стоит на master
+        run: |
+          git fetch --no-tags origin master:refs/remotes/origin/master
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "::error::Тег $GITHUB_REF_NAME не на master — релиз собирается только оттуда"
+            exit 1
+          fi
+
+      - name: Версия тега совпадает с package.json
+        run: |
+          expected="v$(node -p "require('./package.json').version")"
+          if [ "$expected" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Тег $GITHUB_REF_NAME, а в package.json $expected — публикация остановлена"
+            exit 1
+          fi
+          echo "Версия: $GITHUB_REF_NAME"
+
+      - name: Зависимости
+        run: npm ci
+
+      # Trusted Publishing требует npm ≥ 11.5.1, в Node 22 идёт npm 10.x
+      - name: npm для Trusted Publishing
+        run: npm install -g npm@^11
+
+      - name: Типы и состав инструментов
+        run: npm run check
+
+      - name: Заглушка .env для smoke
+        run: printf 'EVA_URL=https://example.invalid\nEVA_TOKEN=dummy\n' > .env
+
+      - name: Старт сервера по stdio
+        run: npm run smoke
+
+      - name: Состав пакета в лог
+        run: npm pack --dry-run
+
+      - name: Публикация в npm
+        run: npm publish --provenance --access public
+
+      # Вехи названы коротко (v0.8), теги — полной версией (v0.8.0), поэтому ищем оба варианта.
+      # Если вехи нет, релиз всё равно выходит: заметки соберутся из коммитов.
+      - name: Заметки о вехе
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          number="$(gh api "repos/$GITHUB_REPOSITORY/milestones?state=all&per_page=100" \
+            --jq "[.[] | select(.title == \"$GITHUB_REF_NAME\" or .title == \"v${version%.*}\")] | first | .number // empty")"
+          if [ -z "$number" ]; then
+            echo "Веха для $GITHUB_REF_NAME не найдена — заметки будут только из коммитов"
+            exit 0
+          fi
+          title="$(gh api "repos/$GITHUB_REPOSITORY/milestones/$number" --jq '.title')"
+          {
+            echo "## Что вошло в веху \`$title\`"
+            echo
+            gh issue list --repo "$GITHUB_REPOSITORY" --state closed --milestone "$title" \
+              --limit 100 --json number,title --jq '.[] | "- #\(.number) — \(.title)"'
+            echo
+          } > milestone-notes.md
+          echo "Заметки о вехе собраны: $title"
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f milestone-notes.md ]; then
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file milestone-notes.md \
+              --generate-notes
+          else
+            gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --generate-notes
+          fi
