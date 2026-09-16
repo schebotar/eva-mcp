@@ -138,14 +138,12 @@ a closed pull request»). Базу оставляем до мержа верхн
 
 ### Состояние сборки
 
-Инструментов сервер отдаёт **35** (11 активных модулей в `src/index.ts`). Ещё 3 модуля
-закомментированы в `src/index.ts` — код лежит в `src/tools/`, но сервер этих инструментов
+Инструментов сервер отдаёт **37** (13 активных модулей в `src/index.ts`). Ещё 1 модуль
+закомментирован в `src/index.ts` — код лежит в `src/tools/`, но сервер этих инструментов
 не отдаёт:
 
 | Модуль | Инструменты | Статус |
 |--------|-------------|--------|
-| `attachment.tools.ts` | `get_attachments` | выключен |
-| `follower.tools.ts` | `get_task_followers` | выключен |
 | `epic.tools.ts` | `get_epic_summary`, `get_roadmap` | выключен |
 
 В `src/tools/sprint.tools.ts` также закомментированы `update_sprint` и `delete_sprint` —
