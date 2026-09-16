@@ -126,7 +126,23 @@ a closed pull request»). Базу оставляем до мержа верхн
 ветку на коммите из `master`, переоткрыть PR, перевести базу на `master`, восстановленную ветку
 удалить — так спасали #5 после мержа #4.
 
-**Версия.** Единственный источник — `package.json`. Фича-PR версию не меняет и lockfile не правит.
+**Версия.** Единственный источник — `package.json`. Фича-PR версию не меняет и lockfile не
+правит: номер поднимается отдельным релизным PR вместе с `CHANGELOG.md`.
+
+**Выпуск.** Релизный PR поднимает версию и дописывает `CHANGELOG.md`; после мержа на коммит
+в `master` ставится тег `vX.Y.Z`, и дальше работает `.github/workflows/release.yml`: он требует,
+чтобы тег стоял на `master` и совпадал с версией в манифесте, прогоняет `check` и `smoke`,
+публикует пакет в npm по OIDC (доверенный издатель, токена в secrets нет) и создаёт GitHub Release
+с заметками из вехи. Если версия уже есть в реестре, шаг публикации пропускается — так
+отрабатывает дебютный тег.
+
+**Порядок дебюта** отличается тем, что доверенного издателя нельзя завести, пока пакета нет:
+`npm trust` для несуществующего пакета отвечает 403. Поэтому первую версию публикуют вручную —
+`npm publish --access public` с того же коммита, на который потом встанет тег, — и только затем
+настраивают издателя: `npm trust github eva-mcp --file release.yml --repo schebotar/eva-mcp
+--allow-publish`. Проверка — `npm trust list eva-mcp`. Флаг `--allow-publish` обязателен:
+конфигурации, созданные после 03.09.2026, по умолчанию разрешают только `npm stage publish`,
+а workflow зовёт `npm publish`. После этого выпуски идут тегами через конвейер.
 
 **Проверка перед PR.** Обязательны `npm run check` (типы + состав инструментов сверяется с
 документацией) и `npm run smoke` (собранный сервер поднимается по stdio: число инструментов и
@@ -202,6 +218,7 @@ src/
 ├── helpers/
 │   ├── build-task-filter.ts  # Построение BQL-фильтров из аргументов инструментов
 │   ├── comment-tree.ts       # Форматирование дерева комментариев
+│   ├── limit-window.ts       # limit/offset → диапазон slice для API
 │   ├── scoped-tasks.ts       # Задачи в разрезе проекта/спринта для метрик и отчётов
 │   └── markdown.ts          # Конвертация HTML ↔ Markdown
 ├── tools/
@@ -215,7 +232,13 @@ src/
 │   ├── requirement.tools.ts # get_requirement, search_requirements, update_requirement
 │   ├── user.tools.ts     # search_users, get_statuses
 │   ├── project.tools.ts  # search_projects, get_project
-│   └── (выключены: attachment, follower, metrics, reports, epic — см. «Состояние сборки»)
+│   ├── wiki.tools.ts     # search_docs, get_doc, create_doc, update_doc
+│   ├── attachment.tools.ts # get_attachments
+│   ├── follower.tools.ts # get_task_followers
+│   ├── metrics.tools.ts  # get_burndown_data, get_velocity, get_cycle_time, get_cumulative_flow
+│   ├── reports.tools.ts  # get_sprint_review, get_sprint_retrospective, get_team_workload,
+│   │                     #   get_project_health
+│   └── epic.tools.ts     # get_epic_summary, get_roadmap — выключен в index.ts
 └── metrics/              # Scrum-метрики (burndown, velocity, cycle-time, cumulative-flow)
 ```
 
