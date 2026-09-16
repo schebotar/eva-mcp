@@ -30,8 +30,7 @@ function isClosed(statusName: string | null): boolean {
  */
 export async function computeBurndown(
   evaClient: EvaClient,
-  sprintCode: string,
-  projectCode: string
+  sprintCode: string
 ): Promise<BurndownResult> {
   // Задачи спринта — серверной фильтрацией, с архивом (у закрытого спринта
   // задачи архивируются вместе с ним)
