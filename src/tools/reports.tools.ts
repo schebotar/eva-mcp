@@ -7,7 +7,6 @@ import type { TaskInfo, SprintInfo } from "../types.js";
 
 const SprintReviewSchema = z.object({
   sprint: z.string().min(1, "Код спринта обязателен"),
-  project: z.string().min(1, "Код проекта обязателен"),
 });
 
 const TeamWorkloadSchema = z.object({
@@ -234,10 +233,14 @@ export const reportsToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        sprint: { type: "string", description: "Код спринта" },
-        project: { type: "string", description: "Код проекта" },
+        sprint: {
+          type: "string",
+          description:
+            "**Код спринта** (например `SPR-001885`) — возьми из `search_sprints`. " +
+            "Задаёт разрез: проект не нужен, задачи берутся по `lists.code`",
+        },
       },
-      required: ["sprint", "project"],
+      required: ["sprint"],
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
@@ -249,10 +252,14 @@ export const reportsToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        sprint: { type: "string", description: "Код спринта" },
-        project: { type: "string", description: "Код проекта" },
+        sprint: {
+          type: "string",
+          description:
+            "**Код спринта** (например `SPR-001885`) — возьми из `search_sprints`. " +
+            "Задаёт разрез: проект не нужен, задачи берутся по `lists.code`",
+        },
       },
-      required: ["sprint", "project"],
+      required: ["sprint"],
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },

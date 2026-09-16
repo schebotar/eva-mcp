@@ -9,7 +9,6 @@ import { computeCFD } from "../metrics/cumulative-flow.js";
 
 const BurndownSchema = z.object({
   sprint: z.string().min(1, "Код спринта обязателен"),
-  project: z.string().min(1, "Код проекта обязателен"),
 });
 
 const VelocitySchema = z.object({
@@ -184,10 +183,14 @@ export const metricsToolDefs = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        sprint: { type: "string", description: "Код спринта" },
-        project: { type: "string", description: "Код проекта" },
+        sprint: {
+          type: "string",
+          description:
+            "**Код спринта** (например `SPR-001885`) — возьми из `search_sprints`. " +
+            "Задаёт разрез: проект не нужен, задачи берутся по `lists.code`",
+        },
       },
-      required: ["sprint", "project"],
+      required: ["sprint"],
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
   },
@@ -248,8 +251,8 @@ export async function handleMetricsToolCall(
 ): Promise<{ content: { type: "text"; text: string }[]; isError?: boolean } | null> {
   switch (name) {
     case "get_burndown_data": {
-      const { sprint, project } = BurndownSchema.parse(args);
-      const result = await computeBurndown(evaClient, sprint, project);
+      const { sprint } = BurndownSchema.parse(args);
+      const result = await computeBurndown(evaClient, sprint);
       return { content: [{ type: "text", text: formatBurndown(result) }] };
     }
 
