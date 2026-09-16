@@ -6,14 +6,22 @@
 # остановиться до неё.
 #
 # Аутентификация в npm — Trusted Publishing (OIDC), долгоживущего токена в secrets нет.
-# Настраивается один раз на npmjs.com: для пакета `eva-mcp` добавляется доверенный издатель —
-# репозиторий `schebotar/eva-mcp`, workflow `release.yml`. До первой ручной публикации
-# (issue #27) шаг `npm publish` упадёт на аутентификации — это ожидаемо, workflow до неё
-# запускать не нужно.
+# Доверенный издатель заводится один раз и **только после первой публикации**: у несуществующего
+# пакета настраивать нечего, `npm trust` отвечает 403 на `POST /-/package/<имя>/trust`.
+# Поэтому дебютную версию публикуют вручную, а дальше выпуски делает этот workflow.
+# Настройка: `npm trust github eva-mcp --file release.yml --repo schebotar/eva-mcp --allow-publish`.
 #
-# Запасной путь, если trusted publishing окажется недоступен: создать granular-токен на один
-# пакет, положить в секрет `NPM_TOKEN` и добавить в шаг публикации
-# `env: NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` — с заметкой о ротации токена.
+# Шаг публикации пропускается, если версия уже есть в реестре: иначе дебютный тег падал бы
+# на «cannot publish over the previously published versions», а перезапуск упавшего релиза
+# был бы невозможен.
+#
+# Аттестация provenance при публикации по OIDC генерируется автоматически: флаг `--provenance`
+# не нужен и вреден — он делает генерацию обязательной, и при несоблюдении условий публикация
+# упадёт вместо того, чтобы пройти без аттестации.
+#
+# Запасной путь, если trusted publishing окажется недоступен: granular-токен на один пакет
+# в секрете `NPM_TOKEN` и `env: NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}` в шаге публикации —
+# с заметкой о ротации токена.
 
 name: release
 
@@ -39,7 +47,10 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 22
-          cache: npm
+          # Кеш зависимостей в релизной сборке не используем: он подмешивает в артефакт
+          # то, что к тегу отношения не имеет (npm: «never use caching in release builds»).
+          # У setup-node v5 кеш выключен по умолчанию, а в v6 включён — там нужен
+          # явный `package-manager-cache: false`.
           registry-url: https://registry.npmjs.org
 
       - name: Тег стоит на master
@@ -78,8 +89,22 @@ jobs:
       - name: Состав пакета в лог
         run: npm pack --dry-run
 
+      # Дебютную версию публикуют руками (см. заголовок файла), поэтому версия может быть
+      # уже в реестре — тогда шаг публикации пропускается.
+      - name: Версия уже в реестре?
+        id: registry
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if npm view "eva-mcp@$version" version >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::eva-mcp@$version уже в реестре — публикация пропускается"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Публикация в npm
-        run: npm publish --provenance --access public
+        if: steps.registry.outputs.published == 'false'
+        run: npm publish --access public
 
       # Вехи названы коротко (v0.8), теги — полной версией (v0.8.0), поэтому ищем оба варианта.
       # Если вехи нет, релиз всё равно выходит: заметки соберутся из коммитов.
@@ -108,6 +133,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Релиз $GITHUB_REF_NAME уже создан — шаг пропущен"
+            exit 0
+          fi
           if [ -f milestone-notes.md ]; then
             gh release create "$GITHUB_REF_NAME" \
               --title "$GITHUB_REF_NAME" \
