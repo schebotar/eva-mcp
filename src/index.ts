@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { config as loadEnv } from "dotenv";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { readFileSync } from "node:fs";
@@ -11,6 +10,12 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { EvaClient } from "./eva-client.js";
+import {
+  resolveCredentials,
+  ensureUserConfigTemplate,
+  describeMissing,
+  USER_CONFIG_PATH,
+} from "./helpers/credentials.js";
 
 // ── Tools modules ──────────────────────────────────────────────
 import { taskToolDefs, handleTaskToolCall } from "./tools/task.tools.js";
@@ -39,23 +44,21 @@ const { version: VERSION } = JSON.parse(
   readFileSync(join(PKG_ROOT, "package.json"), "utf8")
 ) as { version: string };
 
-// .env из рабочей папки — при запуске из репозитория.
-// Плюс .env рядом с самим пакетом: сервер можно запускать из любого места
-// (npm-глобально, другим MCP-клиентом) — тогда рабочая папка чужая.
-// Уже заданные переменные окружения приоритетнее — dotenv их не перезаписывает.
-loadEnv();
-loadEnv({ path: join(PKG_ROOT, ".env") });
+// ── Учётные данные ─────────────────────────────────────────────
 
-// ── Конфигурация ───────────────────────────────────────────────
+// Цепочка источников — в src/helpers/credentials.ts: переменные окружения →
+// ./.env → ~/.eva-mcp → .env пакета. Всё в stderr: stdout занят протоколом MCP.
+const resolved = resolveCredentials({ cwd: process.cwd(), pkgRoot: PKG_ROOT });
 
-const EVA_URL = process.env.EVA_URL;
-const EVA_TOKEN = process.env.EVA_TOKEN;
-
-if (!EVA_URL || !EVA_TOKEN) {
-  console.error("Ошибка: EVA_URL и EVA_TOKEN должны быть заданы в .env файле или переменных окружения.");
+if (!resolved.ok) {
+  // Первый запуск без учётных данных: создаём шаблон, чтобы пользователю было
+  // что заполнить, и выходим — второй запуск с заполненным файлом уже сработает
+  const created = ensureUserConfigTemplate(USER_CONFIG_PATH);
+  console.error(describeMissing(resolved, created, USER_CONFIG_PATH));
   process.exit(1);
 }
 
+const { url: EVA_URL, token: EVA_TOKEN, sources } = resolved.credentials;
 const evaClient = new EvaClient(EVA_URL, EVA_TOKEN);
 
 // ── Агрегируем все определения инструментов ────────────────────
@@ -154,7 +157,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`eva-mcp запущен. EvaProject URL: ${EVA_URL}`);
+  console.error(
+    `eva-mcp запущен. EvaProject URL: ${EVA_URL} ` +
+      `(EVA_URL: ${sources.EVA_URL}, EVA_TOKEN: ${sources.EVA_TOKEN})`
+  );
 }
 
 main().catch((err) => {
