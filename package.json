@@ -1,6 +1,6 @@
 {
   "name": "eva-mcp",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "MCP server for EvaProject — task management, sprints, requirements, worklog, and more",
   "type": "module",
   "main": "dist/index.js",
