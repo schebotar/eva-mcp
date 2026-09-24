@@ -29,7 +29,11 @@ export interface UserConfigPathOptions {
 /**
  * Путь к конфигу пользователя (dotenv-формат):
  *   Linux и macOS — $XDG_CONFIG_HOME/eva-mcp/credentials, иначе ~/.config/eva-mcp/credentials
- *   Windows       — %APPDATA%\eva-mcp\credentials
+ *   Windows       — %LOCALAPPDATA%\eva-mcp\credentials
+ *
+ * На Windows — Local, а не Roaming: перемещаемый профиль уезжает на файловый сервер,
+ * а в файле секрет. В XDG «локального, но не синхронизируемого» каталога нет, поэтому
+ * на Linux и macOS — ~/.config, как у git и gh.
  *
  * Считается при вызове, а не при загрузке модуля: так окружение и домашнюю папку
  * можно подменить в проверках. Относительный XDG_CONFIG_HOME игнорируется —
@@ -41,8 +45,8 @@ export function userConfigPath(options: UserConfigPathOptions = {}): string {
   const home = options.home ?? homedir();
   const path = platform === "win32" ? win32 : posix;
 
-  const configured = platform === "win32" ? env.APPDATA?.trim() : env.XDG_CONFIG_HOME?.trim();
-  const fallback = platform === "win32" ? path.join(home, "AppData", "Roaming") : path.join(home, ".config");
+  const configured = platform === "win32" ? env.LOCALAPPDATA?.trim() : env.XDG_CONFIG_HOME?.trim();
+  const fallback = platform === "win32" ? path.join(home, "AppData", "Local") : path.join(home, ".config");
   const base = configured && path.isAbsolute(configured) ? configured : fallback;
   return path.join(base, "eva-mcp", "credentials");
 }
@@ -145,8 +149,16 @@ export function resolveCredentials(options: ResolveOptions): CredentialsResult {
  * Возвращает true, если файл создан этим вызовом.
  */
 export function ensureUserConfigTemplate(path: string): boolean {
-  // 0o700 / 0o600: токен — секрет; на Windows права игнорируются
-  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  // 0o700 / 0o600: токен — секрет; на Windows права игнорируются.
+  // Родители (например ~/.config) — общие, их создаём с обычными правами;
+  // 0o700 — только свой каталог. Существующие каталоги не трогаем.
+  const dir = dirname(path);
+  mkdirSync(dirname(dir), { recursive: true });
+  try {
+    mkdirSync(dir, { mode: 0o700 });
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code !== "EEXIST") throw err;
+  }
   try {
     // "wx" — создать, только если файла нет: без гонки двух одновременных стартов
     writeFileSync(path, USER_CONFIG_TEMPLATE, { encoding: "utf8", mode: 0o600, flag: "wx" });

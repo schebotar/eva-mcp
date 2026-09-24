@@ -140,7 +140,7 @@ MCP-клиента не обязательно: сервер ищет их са�
 | ОС | Конфиг пользователя |
 |----|---------------------|
 | Linux, macOS | `~/.config/eva-mcp/credentials` (или `$XDG_CONFIG_HOME/eva-mcp/credentials`) |
-| Windows | `%APPDATA%\eva-mcp\credentials` |
+| Windows | `%LOCALAPPDATA%\eva-mcp\credentials` |
 
 **Самый простой путь:** запустите сервер один раз без настройки — он создаст конфиг
 пользователя с шаблоном, напечатает путь к нему и попросит его заполнить:
