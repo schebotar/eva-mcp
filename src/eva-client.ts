@@ -1136,7 +1136,7 @@ export class EvaClient {
   async listDocs(filter?: BqlFilter | BqlFilter[], slice?: [number, number]): Promise<DocInfo[]> {
     const kwargs: Record<string, unknown> = {
       // text не запрашиваем — страницы бывают на сотни КБ; текст отдаёт getDoc
-      fields: ["id", "code", "name", "project.code", "project.name", "parent.code", "parent.name", "cmf_modified_at", "cmf_owner.login", "cmf_owner.name"],
+      fields: ["id", "code", "name", "project.code", "project.name", "parent.code", "parent.name", "tree_parent.code", "tree_parent.name", "tree_node_is_branch", "cmf_modified_at", "cmf_owner.login", "cmf_owner.name"],
       no_meta: true,
       slice: slice ?? [0, 50],
     };
@@ -1149,28 +1149,37 @@ export class EvaClient {
 
   /**
    * Создать wiki-документ в проекте.
-   * ВАЖНО: без parent документ попадает в личное пространство пользователя,
-   * поэтому parent — родительская страница или сам проект (корень wiki проекта).
+   *
+   * Позиция в дереве навигации задаётся полем `tree_parent`, а не `parent`: `parent` —
+   * контейнер страницы (раздел), у страниц wiki это всегда проект, у созданных в UI тоже.
+   * Если положить код страницы в `parent`, документ создастся и будет читаться, но в дереве
+   * wiki не появится — так и было до 0.8.1 (issue #43).
+   *
+   * Без `parentDocCode` страница встаёт в корень wiki проекта. Оба поля API принимает
+   * одним вызовом `create` — страховочный `update` не нужен (проверено на живом инстансе).
+   *
    * Текст записывается только через черновик (text_draft) + do_publish.
    */
   async createDoc(projectCode: string, name: string, textHtml?: string, parentDocCode?: string): Promise<DocInfo> {
     const project = await this.getProject(projectCode);
 
-    let parentId = project.id;
+    const kwargs: Record<string, unknown> = {
+      project: project.id,
+      // раздел страницы — проект, как у страниц из интерфейса; без parent документ
+      // уходит в личное пространство пользователя
+      parent: project.id,
+      name,
+    };
+
     if (parentDocCode) {
       const parentDoc = await this.call<EvaDocRaw>("CmfDocument.get", {
         filter: ["code", "==", parentDocCode],
         fields: ["id"],
       });
       this.assertFound(parentDoc, `Страница с кодом "${parentDocCode}" не найдена. Проверьте код через search_docs.`);
-      parentId = parentDoc.id;
+      kwargs.tree_parent = parentDoc.id;
     }
 
-    const kwargs: Record<string, unknown> = {
-      project: project.id,
-      parent: parentId,
-      name,
-    };
     if (textHtml) {
       kwargs.text_draft = textHtml;
     }
