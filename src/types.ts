@@ -613,8 +613,11 @@ export interface DocInfo {
   text: string;               // Markdown (сконвертирован из HTML)
   projectCode: string | null;
   projectName: string | null;
-  parentCode: string | null;  // код родителя: проект (корень wiki) или документ
+  parentCode: string | null;  // контейнер страницы (`parent`): проект или документ
   parentName: string | null;
+  treeParentCode: string | null;  // позиция в дереве навигации (`tree_parent`) — её видит пользователь в UI
+  treeParentName: string | null;
+  isBranch: boolean;              // узел дерева — папка (ветка), а не страница
   status: string | null;
   createdAt: string | null;
   updatedAt: string | null;
@@ -630,6 +633,9 @@ export interface EvaDocRaw {
   text?: string;
   project?: { code?: string; name?: string } | null;
   parent?: { code?: string; name?: string } | null;
+  tree_parent?: { code?: string; name?: string } | null;
+  tree_parent_id?: string | null;
+  tree_node_is_branch?: boolean | null;
   status?: { id?: string; name?: string } | string | null;
   status_name?: string;
   cmf_created_at?: string;

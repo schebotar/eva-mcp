@@ -54,8 +54,9 @@ export const wikiToolDefs = [
   {
     name: "get_doc",
     description:
-      "Получить страницу wiki (EvaWiki) по коду DOC-XXXXXX: название, проект, родитель и полный текст " +
-      "(конвертируется из HTML в Markdown). Длинный текст обрезается (max_chars, по умолчанию 30000).",
+      "Получить страницу wiki (EvaWiki) по коду DOC-XXXXXX: название, проект, раздел, место в дереве " +
+      "навигации и полный текст (конвертируется из HTML в Markdown). Длинный текст обрезается " +
+      "(max_chars, по умолчанию 30000).",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -70,15 +71,15 @@ export const wikiToolDefs = [
     name: "create_doc",
     description:
       "Создать страницу wiki (EvaWiki) в проекте. text — содержимое в Markdown (конвертируется в HTML " +
-      "и публикуется через черновик). parent — код родительской страницы DOC-XXXXXX; без него страница " +
-      "создаётся в корне wiki проекта.",
+      "и публикуется через черновик). parent — код родительской страницы DOC-XXXXXX: страница встанет " +
+      "под неё в дереве навигации. Без parent страница создаётся в корне wiki проекта.",
     inputSchema: {
       type: "object" as const,
       properties: {
         project: { type: "string", description: "Код проекта, например my-project" },
         name: { type: "string", description: "Название страницы" },
         text: { type: "string", description: "Содержимое страницы (Markdown, конвертируется в HTML)" },
-        parent: { type: "string", description: "Код родительской страницы (DOC-XXXXXX), опционально" },
+        parent: { type: "string", description: "**Код страницы-родителя в дереве** (например DOC-000123) — возьми из search_docs. Без него — корень wiki проекта" },
       },
       required: ["project", "name"],
     },
@@ -107,12 +108,14 @@ export const wikiToolDefs = [
 function formatDocList(docs: DocInfo[]): string {
   if (docs.length === 0) return "Страницы wiki не найдены.";
   const rows = docs.map(
-    (d) => `| \`${d.code}\` | ${d.name || "—"} | ${d.projectName ?? d.projectCode ?? "—"} | ${d.parentCode ?? "—"} | ${d.updatedAt ?? "—"} |`
+    (d) =>
+      `| \`${d.code}\` | ${d.name || "—"} | ${d.projectName ?? d.projectCode ?? "—"} | ` +
+      `${d.treeParentCode ?? "—"} | ${d.updatedAt ?? "—"} |`
   );
   return [
     `Найдено страниц: **${docs.length}**`,
     "",
-    "| Код | Название | Проект | Родитель | Изменена |",
+    "| Код | Название | Проект | В дереве | Изменена |",
     "|-----|----------|--------|----------|----------|",
     ...rows,
   ].join("\n");
@@ -125,11 +128,19 @@ function formatDoc(doc: DocInfo, maxChars: number): string {
     truncNote = `\n\n> ⚠️ Текст обрезан: показано ${maxChars} из ${text.length} символов. Увеличьте max_chars, чтобы получить больше.`;
     text = text.slice(0, maxChars);
   }
+  // «Раздел» (`parent`) и «В дереве» (`tree_parent`) — разные поля: первое задаёт
+  // контейнер страницы, второе — место в дереве навигации, которое видно в интерфейсе.
+  // Раньше печатался только раздел, и страница, выпавшая из дерева, выглядела нормальной.
+  const treePosition = doc.treeParentCode
+    ? `${doc.treeParentName ? `${doc.treeParentName} ` : ""}\`${doc.treeParentCode}\``
+    : "корень вики";
   return [
     `# ${doc.name} (\`${doc.code}\`)`,
     "",
     `**Проект:** ${doc.projectName ?? doc.projectCode ?? "—"}`,
-    `**Родитель:** ${doc.parentName ?? doc.parentCode ?? "—"}`,
+    `**Раздел:** ${doc.parentName ?? doc.parentCode ?? "—"}`,
+    `**В дереве:** ${treePosition}`,
+    `**Тип узла:** ${doc.isBranch ? "папка (ветка)" : "страница"}`,
     `**Автор:** ${doc.ownerName ?? doc.ownerLogin ?? "—"}`,
     `**Изменена:** ${doc.updatedAt ?? "—"}`,
     "",
@@ -182,10 +193,15 @@ export async function handleWikiToolCall(
       params.text ? mdToHtml(params.text) : undefined,
       params.parent
     );
+    const position = doc.treeParentCode
+      ? `под страницей \`${doc.treeParentCode}\``
+      : "в корне wiki проекта";
     return {
       content: [{
         type: "text",
-        text: `✅ Страница wiki создана: **${doc.name}** (\`${doc.code}\`) в проекте ${doc.projectName ?? params.project}.`,
+        text:
+          `✅ Страница wiki создана: **${doc.name}** (\`${doc.code}\`) в проекте ` +
+          `${doc.projectName ?? params.project}, ${position}.`,
       }],
     };
   }
