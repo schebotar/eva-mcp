@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // npm run check: цепочка источников EVA_URL/EVA_TOKEN и шаблон конфига пользователя.
 // Работает на собранном dist и во временных папках: настоящие HOME, .env и конфиг не трогает.
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -57,17 +57,20 @@ try {
   expect("macOS без XDG → ~/.config",
     userConfigPath({ platform: "darwin", env: {}, home: "/Users/u" }),
     "/Users/u/.config/eva-mcp/credentials");
-  expect("Windows: %APPDATA%",
-    userConfigPath({ platform: "win32", env: { APPDATA: "D:\\Profile\\Roaming" }, home: "C:\\Users\\u" }),
-    "D:\\Profile\\Roaming\\eva-mcp\\credentials");
-  expect("Windows без APPDATA → AppData\\Roaming",
+  expect("Windows: %LOCALAPPDATA%",
+    userConfigPath({ platform: "win32", env: { LOCALAPPDATA: "D:\\Profile\\Local" }, home: "C:\\Users\\u" }),
+    "D:\\Profile\\Local\\eva-mcp\\credentials");
+  expect("Windows без LOCALAPPDATA → AppData\\Local",
     userConfigPath({ platform: "win32", env: {}, home: "C:\\Users\\u" }),
-    "C:\\Users\\u\\AppData\\Roaming\\eva-mcp\\credentials");
+    "C:\\Users\\u\\AppData\\Local\\eva-mcp\\credentials");
+  expect("Windows: APPDATA (Roaming) не влияет",
+    userConfigPath({ platform: "win32", env: { APPDATA: "D:\\Roaming" }, home: "C:\\Users\\u" }),
+    "C:\\Users\\u\\AppData\\Local\\eva-mcp\\credentials");
   expect("Windows: XDG_CONFIG_HOME не влияет",
-    userConfigPath({ platform: "win32", env: { APPDATA: "D:\\R", XDG_CONFIG_HOME: "/xdg" }, home: "C:\\Users\\u" }),
-    "D:\\R\\eva-mcp\\credentials");
+    userConfigPath({ platform: "win32", env: { LOCALAPPDATA: "D:\\L", XDG_CONFIG_HOME: "/xdg" }, home: "C:\\Users\\u" }),
+    "D:\\L\\eva-mcp\\credentials");
   expect("resolveCredentials берёт путь из того же env",
-    resolveCredentials({ cwd, pkgRoot, env: { XDG_CONFIG_HOME: join(root, "xdg"), APPDATA: join(root, "xdg") } })
+    resolveCredentials({ cwd, pkgRoot, env: { XDG_CONFIG_HOME: join(root, "xdg"), LOCALAPPDATA: join(root, "xdg") } })
       .checked.find((s) => s.name === "конфиг пользователя")?.path,
     join(root, "xdg", "eva-mcp", "credentials"));
 
@@ -122,7 +125,17 @@ try {
   expect("шаблон: повторный вызов ничего не делает", ensureUserConfigTemplate(freshPath), false);
   if (process.platform !== "win32") {
     expect("шаблон: права файла 0600", statSync(freshPath).mode & 0o777, 0o600);
-    expect("шаблон: права каталога 0700", statSync(join(freshPath, "..")).mode & 0o777, 0o700);
+    expect("шаблон: права своего каталога 0700", statSync(join(freshPath, "..")).mode & 0o777, 0o700);
+    // Промежуточные каталоги (как ~/.config на свежей машине) — общие, не 0700
+    expect("шаблон: промежуточный каталог не 0700",
+      (statSync(join(root, "fresh", "nested")).mode & 0o777) !== 0o700, true);
+
+    // Существующий свой каталог: права не меняем
+    const openDir = join(root, "open", "eva-mcp");
+    mkdirSync(openDir, { recursive: true });
+    chmodSync(openDir, 0o755);
+    ensureUserConfigTemplate(join(openDir, "credentials"));
+    expect("шаблон: существующий каталог сохраняет права", statSync(openDir).mode & 0o777, 0o755);
   }
 
   writeFileSync(freshPath, dotenv("https://filled.example", "filled"));
