@@ -106,7 +106,10 @@ jobs:
         if: steps.registry.outputs.published == 'false'
         run: npm publish --access public
 
-      # Вехи названы коротко (v0.8), теги — полной версией (v0.8.0), поэтому ищем оба варианта.
+      # Вехи названы коротко (v0.8) или полной версией (v0.8.1), поэтому сначала ищем точное
+      # совпадение с тегом, и только потом короткую форму. Порядок принципиален: у патч-выпуска
+      # короткая форма совпадает с вехой минора, и выбор «первая подходящая по списку» отдавал
+      # заметки прошлого релиза — так вышло с 0.8.1, чьи заметки уехали в веху v0.8.
       # Если вехи нет, релиз всё равно выходит: заметки соберутся из коммитов.
       - name: Заметки о вехе
         env:
@@ -114,7 +117,11 @@ jobs:
         run: |
           version="${GITHUB_REF_NAME#v}"
           number="$(gh api "repos/$GITHUB_REPOSITORY/milestones?state=all&per_page=100" \
-            --jq "[.[] | select(.title == \"$GITHUB_REF_NAME\" or .title == \"v${version%.*}\")] | first | .number // empty")"
+            --jq "[.[] | select(.title == \"$GITHUB_REF_NAME\")] | first | .number // empty")"
+          if [ -z "$number" ]; then
+            number="$(gh api "repos/$GITHUB_REPOSITORY/milestones?state=all&per_page=100" \
+              --jq "[.[] | select(.title == \"v${version%.*}\")] | first | .number // empty")"
+          fi
           if [ -z "$number" ]; then
             echo "Веха для $GITHUB_REF_NAME не найдена — заметки будут только из коммитов"
             exit 0
