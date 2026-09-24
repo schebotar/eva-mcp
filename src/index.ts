@@ -14,7 +14,7 @@ import {
   resolveCredentials,
   ensureUserConfigTemplate,
   describeMissing,
-  USER_CONFIG_PATH,
+  userConfigPath,
 } from "./helpers/credentials.js";
 
 // ── Tools modules ──────────────────────────────────────────────
@@ -47,8 +47,9 @@ const { version: VERSION } = JSON.parse(
 // ── Учётные данные ─────────────────────────────────────────────
 
 // Цепочка источников — в src/helpers/credentials.ts: переменные окружения →
-// ./.env → ~/.eva-mcp → .env пакета. Всё в stderr: stdout занят протоколом MCP.
-const resolved = resolveCredentials({ cwd: process.cwd(), pkgRoot: PKG_ROOT });
+// ./.env → конфиг пользователя → .env пакета. Всё в stderr: stdout занят протоколом MCP.
+const USER_CONFIG_PATH = userConfigPath();
+const resolved = resolveCredentials({ cwd: process.cwd(), pkgRoot: PKG_ROOT, userConfigPath: USER_CONFIG_PATH });
 
 if (!resolved.ok) {
   // Первый запуск без учётных данных: создаём шаблон, чтобы пользователю было

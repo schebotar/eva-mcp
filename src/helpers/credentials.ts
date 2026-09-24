@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join, posix, win32 } from "node:path";
 import { parse as parseDotenv } from "dotenv";
 
 /**
@@ -9,19 +9,43 @@ import { parse as parseDotenv } from "dotenv";
  * Цепочка, первый непустой источник побеждает — отдельно для каждой переменной:
  *   1. переменные окружения процесса   — клиент передал явно
  *   2. ./.env в рабочей папке          — локально для проекта
- *   3. ~/.eva-mcp                      — умолчание пользователя
+ *   3. конфиг пользователя             — умолчание пользователя, путь — userConfigPath()
  *   4. .env в корне пакета             — только для клона репозитория
  *
  * Пункт 4 при запуске через npx бесполезен: пакет лежит в кэше npm, класть туда
- * .env не вариант. Для этого и нужен пункт 3 — одно место в домашней папке,
+ * .env не вариант. Для этого и нужен пункт 3 — одно место в профиле пользователя,
  * которое видно из любого MCP-клиента.
  */
 
 export const CREDENTIAL_KEYS = ["EVA_URL", "EVA_TOKEN"] as const;
 export type CredentialKey = (typeof CREDENTIAL_KEYS)[number];
 
-/** Пользовательский конфиг: dotenv-файл в домашней папке */
-export const USER_CONFIG_PATH = join(homedir(), ".eva-mcp");
+export interface UserConfigPathOptions {
+  platform?: NodeJS.Platform;
+  env?: NodeJS.ProcessEnv;
+  home?: string;
+}
+
+/**
+ * Путь к конфигу пользователя (dotenv-формат):
+ *   Linux и macOS — $XDG_CONFIG_HOME/eva-mcp/credentials, иначе ~/.config/eva-mcp/credentials
+ *   Windows       — %APPDATA%\eva-mcp\credentials
+ *
+ * Считается при вызове, а не при загрузке модуля: так окружение и домашнюю папку
+ * можно подменить в проверках. Относительный XDG_CONFIG_HOME игнорируется —
+ * спецификация XDG требует абсолютный путь.
+ */
+export function userConfigPath(options: UserConfigPathOptions = {}): string {
+  const platform = options.platform ?? process.platform;
+  const env = options.env ?? process.env;
+  const home = options.home ?? homedir();
+  const path = platform === "win32" ? win32 : posix;
+
+  const configured = platform === "win32" ? env.APPDATA?.trim() : env.XDG_CONFIG_HOME?.trim();
+  const fallback = platform === "win32" ? path.join(home, "AppData", "Roaming") : path.join(home, ".config");
+  const base = configured && path.isAbsolute(configured) ? configured : fallback;
+  return path.join(base, "eva-mcp", "credentials");
+}
 
 /** Шаблон, который сервер создаёт при первом запуске без учётных данных */
 export const USER_CONFIG_TEMPLATE = [
@@ -34,7 +58,7 @@ export const USER_CONFIG_TEMPLATE = [
 ].join("\n");
 
 export interface CredentialSource {
-  /** Короткое имя для сообщений: «переменные окружения», «./.env», «~/.eva-mcp», «.env пакета» */
+  /** Короткое имя для сообщений: «переменные окружения», «./.env», «конфиг пользователя», «.env пакета» */
   name: string;
   /** Путь к файлу; у переменных окружения его нет */
   path?: string;
@@ -83,14 +107,14 @@ function fromEnv(env: NodeJS.ProcessEnv): Partial<Record<CredentialKey, string>>
 /** Собрать учётные данные по цепочке источников, не трогая process.env */
 export function resolveCredentials(options: ResolveOptions): CredentialsResult {
   const env = options.env ?? process.env;
-  const userConfigPath = options.userConfigPath ?? USER_CONFIG_PATH;
+  const configPath = options.userConfigPath ?? userConfigPath({ env });
   const cwdEnvPath = join(options.cwd, ".env");
   const pkgEnvPath = join(options.pkgRoot, ".env");
 
   const checked: CredentialSource[] = [
     { name: "переменные окружения", values: fromEnv(env) },
     { name: "./.env", path: cwdEnvPath, values: readDotenvFile(cwdEnvPath) },
-    { name: "~/.eva-mcp", path: userConfigPath, values: readDotenvFile(userConfigPath) },
+    { name: "конфиг пользователя", path: configPath, values: readDotenvFile(configPath) },
     { name: ".env пакета", path: pkgEnvPath, values: readDotenvFile(pkgEnvPath) },
   ];
 
@@ -120,20 +144,26 @@ export function resolveCredentials(options: ResolveOptions): CredentialsResult {
  * Создать шаблон пользовательского конфига, если файла ещё нет.
  * Возвращает true, если файл создан этим вызовом.
  */
-export function ensureUserConfigTemplate(path: string = USER_CONFIG_PATH): boolean {
-  if (existsSync(path)) return false;
-  // 0o600: токен — секрет; на Windows права игнорируются
-  writeFileSync(path, USER_CONFIG_TEMPLATE, { encoding: "utf8", mode: 0o600 });
-  return true;
+export function ensureUserConfigTemplate(path: string): boolean {
+  // 0o700 / 0o600: токен — секрет; на Windows права игнорируются
+  mkdirSync(dirname(path), { recursive: true, mode: 0o700 });
+  try {
+    // "wx" — создать, только если файла нет: без гонки двух одновременных стартов
+    writeFileSync(path, USER_CONFIG_TEMPLATE, { encoding: "utf8", mode: 0o600, flag: "wx" });
+    return true;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "EEXIST") return false;
+    throw err;
+  }
 }
 
 /** Сообщение для stderr, когда учётные данные не найдены */
-export function describeMissing(result: Extract<CredentialsResult, { ok: false }>, createdTemplate: boolean, userConfigPath: string = USER_CONFIG_PATH): string {
+export function describeMissing(result: Extract<CredentialsResult, { ok: false }>, createdTemplate: boolean, configPath: string): string {
   const lines = [`Ошибка: не найдены ${result.missing.join(" и ")}.`];
   if (createdTemplate) {
-    lines.push(`Создан шаблон ${userConfigPath} — заполните его и перезапустите MCP-клиент.`);
-  } else if (existsSync(userConfigPath)) {
-    lines.push(`Заполните ${userConfigPath} (сейчас там пусто: ${result.missing.join(", ")}) и перезапустите MCP-клиент.`);
+    lines.push(`Создан шаблон ${configPath} — заполните его и перезапустите MCP-клиент.`);
+  } else if (existsSync(configPath)) {
+    lines.push(`Заполните ${configPath} (сейчас там пусто: ${result.missing.join(", ")}) и перезапустите MCP-клиент.`);
   }
   lines.push(
     "Где искал: " +
