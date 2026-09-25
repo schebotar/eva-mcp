@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join, posix, win32 } from "node:path";
 import { parse as parseDotenv } from "dotenv";
@@ -167,6 +167,30 @@ export function ensureUserConfigTemplate(path: string): boolean {
     if ((err as NodeJS.ErrnoException).code === "EEXIST") return false;
     throw err;
   }
+}
+
+/**
+ * Предупреждение, если файл с токеном доступен шире 0600: создан вручную,
+ * распакован из архива. Права не меняем — файл пользователя, решать ему.
+ * На Windows режимы POSIX не действуют, проверка не выполняется.
+ */
+export function describeLoosePermissions(
+  path: string,
+  platform: NodeJS.Platform = process.platform
+): string | null {
+  if (platform === "win32") return null;
+  let mode: number;
+  try {
+    mode = statSync(path).mode & 0o777;
+  } catch {
+    return null; // файла нет — предупреждать не о чем
+  }
+  if ((mode & 0o077) === 0) return null;
+  const octal = mode.toString(8).padStart(4, "0");
+  return (
+    `Предупреждение: ${path} доступен не только владельцу (права ${octal}), а в нём токен. ` +
+    `Ограничьте: chmod 600 "${path}"`
+  );
 }
 
 /** Сообщение для stderr, когда учётные данные не найдены */
