@@ -15,6 +15,7 @@ import {
   ensureUserConfigTemplate,
   describeMissing,
   userConfigPath,
+  describeLoosePermissions,
 } from "./helpers/credentials.js";
 
 // ── Tools modules ──────────────────────────────────────────────
@@ -50,6 +51,10 @@ const { version: VERSION } = JSON.parse(
 // ./.env → конфиг пользователя → .env пакета. Всё в stderr: stdout занят протоколом MCP.
 const USER_CONFIG_PATH = userConfigPath();
 const resolved = resolveCredentials({ cwd: process.cwd(), pkgRoot: PKG_ROOT, userConfigPath: USER_CONFIG_PATH });
+
+// Файл с токеном, открытый шире 0600, — только предупреждение: права не меняем
+const looseWarning = describeLoosePermissions(USER_CONFIG_PATH);
+if (looseWarning) console.error(looseWarning);
 
 if (!resolved.ok) {
   // Первый запуск без учётных данных: создаём шаблон, чтобы пользователю было

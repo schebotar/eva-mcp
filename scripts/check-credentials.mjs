@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   USER_CONFIG_TEMPLATE,
+  describeLoosePermissions,
   describeMissing,
   ensureUserConfigTemplate,
   resolveCredentials,
@@ -141,6 +142,21 @@ try {
   writeFileSync(freshPath, dotenv("https://filled.example", "filled"));
   expect("заполненный файл не перезаписывается", ensureUserConfigTemplate(freshPath), false);
   expect("заполненный файл цел", readFileSync(freshPath, "utf8"), dotenv("https://filled.example", "filled"));
+
+  // ── Предупреждение о правах шире 0600 ────────────────────────
+  expect("права: на Windows не проверяются", describeLoosePermissions(freshPath, "win32"), null);
+  expect("права: файла нет — молчит", describeLoosePermissions(join(root, "nope"), "linux"), null);
+  if (process.platform !== "win32") {
+    expect("права: 0600 — молчит", describeLoosePermissions(freshPath), null);
+    chmodSync(freshPath, 0o644);
+    const warning = describeLoosePermissions(freshPath);
+    expect("права: 0644 — предупреждение с путём и режимом",
+      Boolean(warning && warning.includes(freshPath) && warning.includes("0644")), true);
+    expect("права: предупреждение не меняет файл", statSync(freshPath).mode & 0o777, 0o644);
+    expect("права: в предупреждении нет значений", Boolean(warning && !warning.includes("filled")), true);
+    chmodSync(freshPath, 0o640);
+    expect("права: доступ группы — тоже предупреждение", describeLoosePermissions(freshPath) !== null, true);
+  }
 
   // ── Сообщение в stderr: путь есть, значений нет ──────────────
   const missing = resolveWith({ env: { EVA_URL: "https://secret-url.example" } });
