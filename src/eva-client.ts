@@ -1048,6 +1048,16 @@ export class EvaClient {
       filter: ["obj_code", "==", code],
       order_by: ["-cmf_created_at"],
     });
+    if (result.length === 0) {
+      // list по несуществующему коду честно пуст — без проверки агент прочитал бы
+      // «задача есть, статус не менялся». Проверяем только пустой ответ: лишний
+      // запрос не платится там, где история есть. get по коду находит и архивные задачи.
+      const task = await this.call<EvaTaskRaw>("CmfTask.get", {
+        filter: ["code", "==", code],
+        fields: ["id"],
+      });
+      this.assertFound(task, `Задача с кодом "${code}" не найдена. Проверьте код через search_tasks.`);
+    }
     return result.map((raw) => mapHistoryEntry(raw));
   }
 
