@@ -367,6 +367,7 @@ const folders = await this.call<Array<{ id: string }>>(
 
 Вместе со спринтом архивируются и его задачи, поэтому состав закрытого спринта
 через `CmfTask.list` / `CmfTask.count` тоже нужно запрашивать с `include_archived`.
+`CmfTask.get` по коду, как и `CmfList.get`, архивную задачу находит без флага.
 
 `fields: ["**"]` возвращает счётчики `count_tasks_open`, `count_tasks_in_progress`,
 `count_tasks_in_review`, `count_tasks_closed` — отдельно их перечислять не нужно.
