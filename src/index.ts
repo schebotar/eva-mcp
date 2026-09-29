@@ -58,6 +58,8 @@ if (!resolved.ok) {
   // что заполнить, и выходим — второй запуск с заполненным файлом уже сработает
   const created = ensureUserConfigTemplate(USER_CONFIG_PATH);
   console.error(describeMissing(resolved, created, USER_CONFIG_PATH));
+  // Версия — чтобы по логу клиента было видно, какая сборка запущена (npx, глобальная)
+  console.error(`eva-mcp ${VERSION}`);
   process.exit(1);
 }
 
@@ -169,7 +171,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
   console.error(
-    `eva-mcp запущен. EvaProject URL: ${EVA_URL} ` +
+    `eva-mcp ${VERSION} запущен. EvaProject URL: ${EVA_URL} ` +
       `(EVA_URL: ${sources.EVA_URL}, EVA_TOKEN: ${sources.EVA_TOKEN})`
   );
 }
