@@ -16,6 +16,7 @@ import {
   describeMissing,
   userConfigPath,
   describeLoosePermissions,
+  usedCredentialFiles,
 } from "./helpers/credentials.js";
 
 // ── Tools modules ──────────────────────────────────────────────
@@ -52,16 +53,20 @@ const { version: VERSION } = JSON.parse(
 const USER_CONFIG_PATH = userConfigPath();
 const resolved = resolveCredentials({ cwd: process.cwd(), pkgRoot: PKG_ROOT, userConfigPath: USER_CONFIG_PATH });
 
-// Файл с токеном, открытый шире 0600, — только предупреждение: права не меняем
-const looseWarning = describeLoosePermissions(USER_CONFIG_PATH);
-if (looseWarning) console.error(looseWarning);
-
 if (!resolved.ok) {
   // Первый запуск без учётных данных: создаём шаблон, чтобы пользователю было
   // что заполнить, и выходим — второй запуск с заполненным файлом уже сработает
   const created = ensureUserConfigTemplate(USER_CONFIG_PATH);
   console.error(describeMissing(resolved, created, USER_CONFIG_PATH));
   process.exit(1);
+}
+
+// Файлы с токеном, открытые шире 0600, — только предупреждение, права не меняем.
+// Проверяем лишь те файлы, откуда значения реально взяты: ./.env, конфиг пользователя,
+// .env пакета. Значения из переменных окружения файла не имеют — предупреждать не о чем.
+for (const path of usedCredentialFiles(resolved)) {
+  const warning = describeLoosePermissions(path);
+  if (warning) console.error(warning);
 }
 
 const { url: EVA_URL, token: EVA_TOKEN, sources } = resolved.credentials;

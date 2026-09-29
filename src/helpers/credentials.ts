@@ -170,6 +170,19 @@ export function ensureUserConfigTemplate(path: string): boolean {
 }
 
 /**
+ * Файлы, из которых реально взяты значения: только про них имеет смысл предупреждать.
+ * Переменные окружения файла не имеют и в список не попадают — если всё пришло из env,
+ * список пуст. Путь каждого файла — один раз, даже если он дал обе переменные.
+ */
+export function usedCredentialFiles(result: Extract<CredentialsResult, { ok: true }>): string[] {
+  const winners = new Set(Object.values(result.credentials.sources));
+  const paths = result.checked
+    .filter((s) => s.path && winners.has(s.name))
+    .map((s) => s.path!);
+  return [...new Set(paths)];
+}
+
+/**
  * Предупреждение, если файл с токеном доступен шире 0600: создан вручную,
  * распакован из архива. Права не меняем — файл пользователя, решать ему.
  * На Windows режимы POSIX не действуют, проверка не выполняется.
@@ -188,7 +201,7 @@ export function describeLoosePermissions(
   if ((mode & 0o077) === 0) return null;
   const octal = mode.toString(8).padStart(4, "0");
   return (
-    `Предупреждение: ${path} доступен не только владельцу (права ${octal}), а в нём токен. ` +
+    `Предупреждение: ${path} доступен не только владельцу (права ${octal}), а в нём учётные данные EvaTeam. ` +
     `Ограничьте: chmod 600 "${path}"`
   );
 }
