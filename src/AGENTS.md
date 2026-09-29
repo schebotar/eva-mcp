@@ -372,8 +372,7 @@ const folders = await this.call<Array<{ id: string }>>(
 Флаг действует только на выборки. `get` по коду находит закрытый спринт и задачу из
 закрытого спринта и без него — поэтому `get_sprint`/`get_task` по коду работают, а
 `search_sprints`/`search_tasks` без `include_archived` те же объекты не показывают.
-Признак — поле `cmf_archived: true` (статус при этом `closed`); поля `is_archive` в ответе
-нет и с `fields: ["**"]`, по нему архив не определить.
+Признак — поле `cmf_archived: true` (статус при этом `closed`).
 
 `fields: ["**"]` возвращает счётчики `count_tasks_open`, `count_tasks_in_progress`,
 `count_tasks_in_review`, `count_tasks_closed` — отдельно их перечислять не нужно.
