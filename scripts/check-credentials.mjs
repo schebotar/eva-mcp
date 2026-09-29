@@ -7,6 +7,7 @@ import { join } from "node:path";
 import {
   USER_CONFIG_TEMPLATE,
   describeLoosePermissions,
+  usedCredentialFiles,
   describeMissing,
   ensureUserConfigTemplate,
   resolveCredentials,
@@ -156,6 +157,34 @@ try {
     expect("права: в предупреждении нет значений", Boolean(warning && !warning.includes("filled")), true);
     chmodSync(freshPath, 0o640);
     expect("права: доступ группы — тоже предупреждение", describeLoosePermissions(freshPath) !== null, true);
+  }
+
+  // ── Какие файлы проверять: только те, что дали значения ──────
+  const cwdEnvPath = join(cwd, ".env");
+  const used = (setup) => {
+    const result = resolveWith(setup);
+    return result.ok ? usedCredentialFiles(result) : "не ok";
+  };
+  expect("файлы: всё из env — проверять нечего",
+    used({ env: { EVA_URL: "https://env.example", EVA_TOKEN: "env" }, userConfig: dotenv("https://user.example", "user") }),
+    []);
+  expect("файлы: всё из конфига — только он",
+    used({ userConfig: dotenv("https://user.example", "user") }), [configPath]);
+  expect("файлы: обе переменные из ./.env — путь один раз",
+    used({ cwdEnv: dotenv("https://cwd.example", "cwd"), userConfig: dotenv("https://user.example", "user") }),
+    [cwdEnvPath]);
+  expect("файлы: URL из env, токен из ./.env — только ./.env",
+    used({ env: { EVA_URL: "https://env.example" }, cwdEnv: "EVA_TOKEN=cwd\n", userConfig: dotenv("https://user.example", "user") }),
+    [cwdEnvPath]);
+  expect("файлы: URL из ./.env, токен из конфига — оба",
+    used({ cwdEnv: "EVA_URL=https://cwd.example\n", userConfig: dotenv("https://user.example", "user") }),
+    [cwdEnvPath, configPath]);
+  if (process.platform !== "win32") {
+    resolveWith({ cwdEnv: dotenv("https://cwd.example", "cwd") });
+    chmodSync(cwdEnvPath, 0o644);
+    const envWarning = describeLoosePermissions(cwdEnvPath);
+    expect("права: ./.env 0644 — предупреждение с его путём",
+      Boolean(envWarning && envWarning.includes(cwdEnvPath)), true);
   }
 
   // ── Сообщение в stderr: путь есть, значений нет ──────────────
