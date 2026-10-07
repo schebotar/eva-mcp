@@ -1083,6 +1083,32 @@ export class EvaClient {
     return result.map((raw) => mapHistoryEntry(raw));
   }
 
+  /**
+   * История статусов сразу многих задач — для метрик по переходам.
+   * Коды идут пачками в `IN`, внутри пачки — постранично: записей бывает больше окна.
+   * Несуществующие коды не проверяются: их у вызывающего нет, он берёт коды из выборки.
+   */
+  async listStatusHistory(codes: string[]): Promise<StatusHistoryEntry[]> {
+    const CODES_PER_CALL = 100;
+    const PAGE = 1000;
+    const entries: StatusHistoryEntry[] = [];
+    for (let i = 0; i < codes.length; i += CODES_PER_CALL) {
+      const chunk = codes.slice(i, i + CODES_PER_CALL);
+      for (let offset = 0; ; offset += PAGE) {
+        const page = await this.call<StatusHistoryEntryRaw[]>("CmfStatusHistory.list", {
+          fields: ["id", "obj_code", "cmf_created_at", "from_status_name", "to_status_name", "to_status_code", "to_status_type"],
+          filter: ["obj_code", "IN", chunk],
+          order_by: ["cmf_created_at"],
+          slice: [offset, offset + PAGE], // [от, до)
+          no_meta: true,
+        });
+        entries.push(...page.map((raw) => mapHistoryEntry(raw)));
+        if (page.length < PAGE) break;
+      }
+    }
+    return entries;
+  }
+
   /** Создать новую задачу */
   async createTask(fields: Record<string, unknown>): Promise<TaskInfo> {
     const taskId = await this.call<string>("CmfTask.create", { ...fields });

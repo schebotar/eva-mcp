@@ -146,11 +146,21 @@ function formatCFD(result: Awaited<ReturnType<typeof computeCFD>>): string {
     "",
     `Всего задач: **${result.totalTasks}** | Дней: **${result.dates.length}**`,
     "",
+    "Статус на конец каждого дня восстановлен по истории переходов.",
+  ];
+  if (result.closedBeforeExcluded) {
+    lines.push("Задачи, закрытые до начала периода, не учитываются.");
+  }
+  if (result.withoutHistory > 0) {
+    lines.push(`Без переходов в истории: ${result.withoutHistory} — статус не менялся с создания.`);
+  }
+  lines.push(
+    "",
     "## Распределение по статусам (последний день)",
     "",
     "| Статус | Количество |",
     "|--------|------------|",
-  ];
+  );
 
   for (const s of result.statuses) {
     const last = s.counts[s.counts.length - 1];
@@ -161,13 +171,11 @@ function formatCFD(result: Awaited<ReturnType<typeof computeCFD>>): string {
   lines.push("| Дата |" + result.statuses.map((s) => ` ${s.name} |`).join(""));
   lines.push("|------|" + result.statuses.map(() => "-------|").join(""));
 
-  // Последние 7 дней
-  const recentDates = result.dates.slice(-7);
-  for (let i = 0; i < recentDates.length; i++) {
-    const idx = result.dates.indexOf(recentDates[i]);
+  // Весь период: динамика по дням и есть смысл CFD (days ≤ 90 — таблица ограничена схемой)
+  result.dates.forEach((date, idx) => {
     const cells = result.statuses.map((s) => ` ${s.counts[idx]} |`).join("");
-    lines.push(`| ${recentDates[i]} |${cells}`);
-  }
+    lines.push(`| ${date} |${cells}`);
+  });
 
   return lines.join("\n");
 }
@@ -198,7 +206,8 @@ export const metricsToolDefs = [
     name: "get_velocity",
     description:
       "Получить velocity команды — среднее количество выполненных задач за спринт " +
-      "по последним N спринтам.",
+      "по последним N завершённым спринтам: закрытым или с прошедшей датой окончания. " +
+      "Порядок — по датам спринта, текущий спринт в расчёт не входит.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -228,7 +237,9 @@ export const metricsToolDefs = [
   {
     name: "get_cumulative_flow",
     description:
-      "Получить данные Cumulative Flow Diagram — распределение задач по статусам за период.",
+      "Получить данные Cumulative Flow Diagram — сколько задач было в каждом статусе на конец " +
+      "каждого дня периода. Считается по истории переходов статусов. В разрезе проекта задачи, " +
+      "закрытые до начала периода, не учитываются.",
     inputSchema: {
       type: "object" as const,
       properties: {

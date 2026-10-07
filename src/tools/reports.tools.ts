@@ -180,18 +180,23 @@ function formatTeamWorkload(
     "|------------|-------|---------|----------|---------|------------|",
   ];
 
-  for (const [name, personTasks] of byPerson) {
-    const total = personTasks.length;
+  // Без светофора: порог «больше N задач» не переносится между командами — задачи
+  // разного размера, а в счёт шли и закрытые. Вместо оценки — порядок: сверху те,
+  // у кого больше незакрытых задач
+  const rows = [...byPerson].map(([name, personTasks]) => {
     const open = personTasks.filter(
       (t) => !isClosed(t.statusName) && !isInProgress(t.statusName)
     ).length;
     const inProgress = personTasks.filter((t) => isInProgress(t.statusName)).length;
     const closed = personTasks.filter((t) => isClosed(t.statusName)).length;
     const estimate = personTasks.reduce((sum, t) => sum + (t.estimateWork ?? 0), 0);
+    return { name, total: personTasks.length, open, inProgress, closed, estimate };
+  });
+  rows.sort((a, b) => b.open + b.inProgress - (a.open + a.inProgress) || b.total - a.total);
 
-    const load = total > 5 ? "🔴" : total > 3 ? "🟡" : "🟢";
+  for (const r of rows) {
     lines.push(
-      `| ${load} ${name} | ${total} | ${open} | ${inProgress} | ${closed} | ${estimate || "—"} |`
+      `| ${r.name} | ${r.total} | ${r.open} | ${r.inProgress} | ${r.closed} | ${r.estimate || "—"} |`
     );
   }
 
@@ -275,7 +280,8 @@ export const reportsToolDefs = [
   {
     name: "get_team_workload",
     description:
-      "Получить загруженность команды: количество задач по исполнителям, статусы, оценка.",
+      "Получить загруженность команды: количество задач по исполнителям, статусы, оценка. " +
+      "Сверху — исполнители с наибольшим числом незакрытых задач.",
     inputSchema: {
       type: "object" as const,
       properties: {

@@ -170,12 +170,12 @@ Claude Code складывает stderr серверов в
 | `search_requirements` | Поиск требований по статусу, исполнителю, проекту, приоритету |
 | `update_requirement` | Обновить **черновик текста** требования по коду (Markdown) |
 | `get_burndown_data` | Burndown спринта: идеальная и фактическая линии сгорания, тренд |
-| `get_velocity` | Velocity команды по последним спринтам (включая закрытые) |
+| `get_velocity` | Velocity команды по последним завершённым спринтам, по датам спринта |
 | `get_cycle_time` | Cycle time: время от создания до закрытия, перцентили |
-| `get_cumulative_flow` | Cumulative Flow Diagram: распределение задач по статусам |
+| `get_cumulative_flow` | Cumulative Flow Diagram: задачи по статусам на каждый день, по истории переходов |
 | `get_sprint_review` | Sprint Review: что сделано в спринте |
 | `get_sprint_retrospective` | Sprint Retrospective: метрики спринта, что прошло хорошо и что нет |
-| `get_team_workload` | Загруженность команды: задачи по исполнителям и статусам |
+| `get_team_workload` | Загруженность команды: задачи по исполнителям и статусам, сверху — у кого больше незакрытых |
 | `get_project_health` | Health Check проекта: спринты, доля закрытых, просрочки |
 | `get_attachments` | Список вложений задачи по её коду |
 | `get_task_followers` | Список подписчиков задачи |

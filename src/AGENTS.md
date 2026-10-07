@@ -184,7 +184,7 @@ export type BqlOperator = "==" | "!=" | "LIKE" | "NOT LIKE" | "ILIKE" | "NOT ILI
 | `CmfList.count` | Количество спринтов | `countSprints` |
 | `CmfFolder.list` | Список папок | `findSprintsFolderId` |
 | `CmfTimeTrackerHistory.list` | Журнал работ | `getWorklog` |
-| `CmfStatusHistory.list` | История статусов | `getTaskHistory` |
+| `CmfStatusHistory.list` | История статусов | `getTaskHistory`, `listStatusHistory` |
 | `CmfWorkflow.get` | Получить бизнес-процесс | Используется в `getStatuses(projectCode)` |
 
 ## Важные нюансы API
@@ -243,6 +243,20 @@ project"` и не создаёт задачу.
 Проект имеет поле `workflow: { code, name }` — бизнес-процесс.
 Доступен через `CmfProject.get` с `fields: ["**"]` (входит в `**`).
 Добавлен в `EvaProjectRaw` и `ProjectInfo` как `workflowCode`/`workflowName`.
+
+### История статусов (CmfStatusHistory)
+
+Запись — один переход: `obj_code` (код задачи), `cmf_created_at`, `from_status_name` →
+`to_status_name`, `to_status_code`, `to_status_type` (`OPEN`, `IN_PROGRESS`, `IN_REVIEW`,
+`CLOSED`). Проверено на живом инстансе:
+
+- `["obj_code", "IN", [коды]]` работает — история многих задач приходит одним запросом;
+  `listStatusHistory()` шлёт коды пачками по 100 и листает `slice` окнами по 1000;
+- записи о создании (`from_status` пустой) **есть не у всех задач**: на рабочих проектах
+  её нет, история начинается с первого перехода. Нет записей вовсе — статус не менялся
+  с создания, текущий статус и есть исходный;
+- в именах статусов встречаются хвостовые пробелы — сравнивать после `trim()`;
+- история на инстансе ведётся с 2024 года.
 
 ### Журнал работ (CmfTimeTrackerHistory)
 
@@ -416,8 +430,12 @@ const folders = await this.call<Array<{ id: string }>>(
 
 Архив включается по смыслу, а не везде: в разрезе спринта — всегда (задачи закрытого
 спринта архивируются вместе с ним, иначе состав неполный и молча), в разрезе проекта —
-только там, где смотрят историю, например cycle time. Срезы «сейчас» — загрузка команды,
-health check — архив не подмешивают.
+только там, где смотрят историю, например cycle time и CFD. Срезы «сейчас» — загрузка
+команды, health check — архив не подмешивают.
+
+Расчёт за период (CFD) берёт проект с архивом, но с `openSince`: задачи, закрытые до начала
+периода, отсекаются серверным фильтром по `status_closed_at` (`>=` даты или `null`), иначе
+история тянулась бы по тысячам давно закрытых задач. Фильтр сверен с подсчётом в памяти.
 
 Списки спринтов проекта (`velocity`, `project_health`) выбираются фильтром
 `[["parent_id", "==", UUID], ["code", "LIKE", "SPR-%"]]`: спринт — не единственный вид

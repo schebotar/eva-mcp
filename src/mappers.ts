@@ -99,6 +99,8 @@ export function mapHistoryEntry(raw: StatusHistoryEntryRaw): StatusHistoryEntry 
     fromStatus: raw.from_status_name ?? null,
     toStatus: raw.to_status_name ?? null,
     toStatusCode: raw.to_status_code ?? null,
+    toStatusType: raw.to_status_type ?? null,
+    taskCode: raw.obj_code ?? null,
     author: raw.cmf_author?.login ?? null,
     authorName: raw.cmf_author?.name ?? null,
   };
