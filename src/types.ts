@@ -432,6 +432,9 @@ export interface StatusHistoryEntryRaw {
   from_status_name?: string;
   to_status_name?: string;
   to_status_code?: string;
+  /** Тип статуса: OPEN, IN_PROGRESS, IN_REVIEW, CLOSED */
+  to_status_type?: string;
+  obj_code?: string;
   cmf_author?: { login?: string; name?: string } | null;
 }
 
@@ -442,6 +445,9 @@ export interface StatusHistoryEntry {
   fromStatus: string | null;
   toStatus: string | null;
   toStatusCode: string | null;
+  toStatusType: string | null;
+  /** Код задачи, к которой относится запись */
+  taskCode: string | null;
   author: string | null;
   authorName: string | null;
 }

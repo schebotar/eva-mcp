@@ -23,6 +23,12 @@ function isClosed(statusName: string | null): boolean {
     .some((s) => lower.includes(s));
 }
 
+/** Момент спринта для сортировки: плановое окончание, начало, без дат — создание */
+function sprintMoment(sprint: SprintInfo): number | null {
+  const date = sprint.endDate ?? sprint.startDate ?? sprint.createdAt;
+  return date ? new Date(date).getTime() : null;
+}
+
 /**
  * Вычисляет velocity команды по последним N спринтам проекта.
  */
@@ -43,10 +49,17 @@ export async function computeVelocity(
     true
   );
 
-  // Сортируем по дате создания (новые первые)
+  // Velocity — по завершённым спринтам: текущий с недоделанными задачами занизил бы
+  // среднее. Завершён — закрыт (архив) или прошла плановая дата окончания.
+  // Порядок — по датам спринта (новые первые), а не по созданию: спринты заводят
+  // и задним числом, и заранее
+  const now = Date.now();
   const sorted = projectSprints
-    .filter((s) => s.createdAt)
-    .sort((a, b) => new Date(b.createdAt!).getTime() - new Date(a.createdAt!).getTime());
+    .map((s) => ({ sprint: s, at: sprintMoment(s) }))
+    .filter((s): s is { sprint: SprintInfo; at: number } =>
+      s.at !== null && (s.sprint.archived || (s.sprint.endDate !== null && s.at <= now)))
+    .sort((a, b) => b.at - a.at)
+    .map((s) => s.sprint);
 
   const recent = sorted.slice(0, sprintCount);
 

@@ -11,10 +11,14 @@ import type { BqlFilter, TaskInfo } from "../types.js";
  * в разрезе спринта архив включается всегда — иначе состав будет неполным
  * и молча. В разрезе проекта архив по умолчанию выключен (текущее состояние
  * проекта), включать его нужно там, где смотрят на историю.
+ *
+ * `openSince` (дата `Y-m-d`) отсекает задачи, закрытые раньше этой даты: история
+ * проекта с архивом — тысячи задач, а для расчёта за период нужны только те, что
+ * в нём ещё жили. Действует в обоих разрезах.
  */
 export async function fetchScopedTasks(
   evaClient: EvaClient,
-  scope: { projectCode?: string; sprintCode?: string; includeArchived?: boolean }
+  scope: { projectCode?: string; sprintCode?: string; includeArchived?: boolean; openSince?: string }
 ): Promise<TaskInfo[]> {
   const filters: BqlFilter[] = [];
   let includeArchived: boolean;
@@ -32,6 +36,10 @@ export async function fetchScopedTasks(
     throw new Error(
       "fetchScopedTasks: нужен projectCode или sprintCode — выборка по всему инстансу возвращает 502"
     );
+  }
+
+  if (scope.openSince) {
+    filters.push(["OR", ["status_closed_at", ">=", scope.openSince], ["status_closed_at", "==", null]]);
   }
 
   return evaClient.listTasks({ filter: filters, includeArchived });
