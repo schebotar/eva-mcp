@@ -430,6 +430,7 @@ export interface StatusHistoryEntryRaw {
   id: string;
   cmf_created_at?: string;
   from_status_name?: string;
+  from_status_code?: string;
   to_status_name?: string;
   to_status_code?: string;
   /** Тип статуса: OPEN, IN_PROGRESS, IN_REVIEW, CLOSED */
@@ -443,6 +444,7 @@ export interface StatusHistoryEntry {
   id: string;
   createdAt: string | null;
   fromStatus: string | null;
+  fromStatusCode: string | null;
   toStatus: string | null;
   toStatusCode: string | null;
   toStatusType: string | null;
