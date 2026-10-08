@@ -97,6 +97,7 @@ export function mapHistoryEntry(raw: StatusHistoryEntryRaw): StatusHistoryEntry 
     id: raw.id,
     createdAt: raw.cmf_created_at ?? null,
     fromStatus: raw.from_status_name ?? null,
+    fromStatusCode: raw.from_status_code ?? null,
     toStatus: raw.to_status_name ?? null,
     toStatusCode: raw.to_status_code ?? null,
     toStatusType: raw.to_status_type ?? null,

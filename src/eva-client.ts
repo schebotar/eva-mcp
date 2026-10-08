@@ -1096,7 +1096,7 @@ export class EvaClient {
       const chunk = codes.slice(i, i + CODES_PER_CALL);
       for (let offset = 0; ; offset += PAGE) {
         const page = await this.call<StatusHistoryEntryRaw[]>("CmfStatusHistory.list", {
-          fields: ["id", "obj_code", "cmf_created_at", "from_status_name", "to_status_name", "to_status_code", "to_status_type"],
+          fields: ["id", "obj_code", "cmf_created_at", "from_status_name", "from_status_code", "to_status_name", "to_status_code", "to_status_type"],
           filter: ["obj_code", "IN", chunk],
           order_by: ["cmf_created_at"],
           slice: [offset, offset + PAGE], // [от, до)
